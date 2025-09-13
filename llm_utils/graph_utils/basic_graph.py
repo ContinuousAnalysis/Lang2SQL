@@ -25,8 +25,10 @@ builder.add_node(QUESTION_GATE, question_gate_node)
 builder.add_node(GET_TABLE_INFO, get_table_info_node)
 builder.add_node(QUERY_MAKER, query_maker_node)
 
+
 def _route_after_gate(state: QueryMakerState):
     return GET_TABLE_INFO
+
 
 builder.add_conditional_edges(
     QUESTION_GATE,

@@ -7,6 +7,7 @@ LLM 체인 생성 모듈.
 - Profile Extraction
 - Question Gate (SQL 적합성 분류)
 """
+
 import os
 from langchain_core.prompts import (
     ChatPromptTemplate,
@@ -29,6 +30,7 @@ class QuestionProfile(BaseModel):
 
     이 프로파일은 이후 컨텍스트 보강 및 SQL 생성 시 힌트로 사용됩니다.
     """
+
     is_timeseries: bool = Field(description="시계열 분석 필요 여부")
     is_aggregation: bool = Field(description="집계 함수 필요 여부")
     has_filter: bool = Field(description="조건 필터 필요 여부")

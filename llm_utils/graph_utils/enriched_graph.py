@@ -31,8 +31,10 @@ builder.add_node(PROFILE_EXTRACTION, profile_extraction_node)
 builder.add_node(CONTEXT_ENRICHMENT, context_enrichment_node)
 builder.add_node(QUERY_MAKER, query_maker_node)
 
+
 def _route_after_gate(state: QueryMakerState):
     return GET_TABLE_INFO
+
 
 builder.add_conditional_edges(
     QUESTION_GATE,

@@ -21,5 +21,3 @@ class QuestionSuitability(BaseModel):
     requires_data_science: bool = Field(
         default=False, description="SQL을 넘어 ML/통계 분석이 필요한지 여부"
     )
-
-

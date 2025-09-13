@@ -117,10 +117,12 @@ def display_result(
                 st.write(f"적합성 통과 여부: `{passed}`")
             try:
                 import json as _json
-                st.code(_json.dumps(details, ensure_ascii=False, indent=2), language="json")
+
+                st.code(
+                    _json.dumps(details, ensure_ascii=False, indent=2), language="json"
+                )
             except Exception:
                 st.write(details)
-
 
     if should_show("show_token_usage"):
         st.markdown("---")

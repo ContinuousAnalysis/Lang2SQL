@@ -36,6 +36,7 @@ class QueryMakerState(TypedDict):
     device: str
     question_gate_result: dict
 
+
 # 노드 함수: QUESTION_GATE 노드
 def question_gate_node(state: QueryMakerState):
     """
