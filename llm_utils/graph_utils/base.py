@@ -1,8 +1,6 @@
-import os
 import json
 
 from typing_extensions import TypedDict, Annotated
-from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 
 
@@ -10,13 +8,13 @@ from llm_utils.chains import (
     query_maker_chain,
     profile_extraction_chain,
     query_enrichment_chain,
+    question_gate_chain,
 )
 
-from llm_utils.tools import get_info_from_db
 from llm_utils.retrieval import search_tables
-from llm_utils.graph_utils.profile_utils import profile_to_text
 
 # 노드 식별자 정의
+QUESTION_GATE = "question_gate"
 GET_TABLE_INFO = "get_table_info"
 TOOL = "tool"
 TABLE_FILTER = "table_filter"
@@ -36,6 +34,31 @@ class QueryMakerState(TypedDict):
     retriever_name: str
     top_n: int
     device: str
+    question_gate_result: dict
+
+# 노드 함수: QUESTION_GATE 노드
+def question_gate_node(state: QueryMakerState):
+    """
+    사용자의 질문이 SQL로 답변 가능한지 판별하고, 구조화된 결과를 반환하는 게이트 노드입니다.
+
+    - question_gate_chain 으로 적합성을 판정하여
+      `question_gate_result`를 설정합니다.
+
+    Args:
+        state (QueryMakerState): 그래프 상태
+
+    Returns:
+        QueryMakerState: 게이트 판정 결과가 반영된 상태
+    """
+
+    question_text = state["messages"][0].content
+    suitability = question_gate_chain.invoke({"question": question_text})
+    state["question_gate_result"] = {
+        "reason": getattr(suitability, "reason", ""),
+        "missing_entities": getattr(suitability, "missing_entities", []),
+        "requires_data_science": getattr(suitability, "requires_data_science", False),
+    }
+    return state
 
 
 # 노드 함수: PROFILE_EXTRACTION 노드

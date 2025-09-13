@@ -30,6 +30,7 @@ SIDEBAR_OPTIONS = {
     "show_sql": "Show SQL",
     "show_question_reinterpreted_by_ai": "Show User Question Reinterpreted by AI",
     "show_referenced_tables": "Show List of Referenced Tables",
+    "show_question_gate_result": "Show Question Gate Result",
     "show_table": "Show Table",
     "show_chart": "Show Chart",
 }
@@ -103,8 +104,23 @@ def display_result(
     show_sql_section = has_query and should_show("show_sql")
     show_result_desc = has_query and should_show("show_result_description")
     show_reinterpreted = has_query and should_show("show_question_reinterpreted_by_ai")
+    show_gate_result = should_show("show_question_gate_result")
     show_table_section = has_query and should_show("show_table")
     show_chart_section = has_query and should_show("show_chart")
+    if show_gate_result and ("question_gate_result" in res):
+        st.markdown("---")
+        st.markdown("**Question Gate 결과:**")
+        details = res.get("question_gate_result")
+        if details:
+            passed = details.get("is_sql_like")
+            if passed is not None:
+                st.write(f"적합성 통과 여부: `{passed}`")
+            try:
+                import json as _json
+                st.code(_json.dumps(details, ensure_ascii=False, indent=2), language="json")
+            except Exception:
+                st.write(details)
+
 
     if should_show("show_token_usage"):
         st.markdown("---")
