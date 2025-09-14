@@ -15,6 +15,9 @@ from langchain_core.prompts import (
 )
 from pydantic import BaseModel, Field
 from llm_utils.output_parser.question_suitability import QuestionSuitability
+from llm_utils.output_parser.document_suitability import (
+    DocumentSuitabilityList,
+)
 
 from llm_utils.llm import get_llm
 
@@ -125,7 +128,26 @@ def create_question_gate_chain(llm):
     return gate_prompt | llm.with_structured_output(QuestionSuitability)
 
 
+def create_document_suitability_chain(llm):
+    """
+    문서 적합성 평가 체인을 생성합니다.
+
+    질문(question)과 검색 결과(tables)를 입력으로 받아
+    테이블별 적합도 점수를 포함한 JSON 딕셔너리를 반환합니다.
+
+    Returns:
+        Runnable: invoke({"question": str, "tables": dict}) -> {"results": DocumentSuitability[]}
+    """
+
+    prompt = get_prompt_template("document_suitability_prompt")
+    doc_prompt = ChatPromptTemplate.from_messages(
+        [SystemMessagePromptTemplate.from_template(prompt)]
+    )
+    return doc_prompt | llm.with_structured_output(DocumentSuitabilityList)
+
+
 query_maker_chain = create_query_maker_chain(llm)
 profile_extraction_chain = create_profile_extraction_chain(llm)
 query_enrichment_chain = create_query_enrichment_chain(llm)
 question_gate_chain = create_question_gate_chain(llm)
+document_suitability_chain = create_document_suitability_chain(llm)

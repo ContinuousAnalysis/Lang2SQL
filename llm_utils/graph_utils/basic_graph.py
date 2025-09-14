@@ -5,9 +5,11 @@ from llm_utils.graph_utils.base import (
     QueryMakerState,
     QUESTION_GATE,
     GET_TABLE_INFO,
+    EVALUATE_DOCUMENT_SUITABILITY,
     QUERY_MAKER,
     question_gate_node,
     get_table_info_node,
+    document_suitability_node,
     query_maker_node,
 )
 
@@ -23,6 +25,7 @@ builder.set_entry_point(QUESTION_GATE)
 # 노드 추가
 builder.add_node(QUESTION_GATE, question_gate_node)
 builder.add_node(GET_TABLE_INFO, get_table_info_node)
+builder.add_node(EVALUATE_DOCUMENT_SUITABILITY, document_suitability_node)
 builder.add_node(QUERY_MAKER, query_maker_node)
 
 
@@ -40,7 +43,8 @@ builder.add_conditional_edges(
 )
 
 # 기본 엣지 설정
-builder.add_edge(GET_TABLE_INFO, QUERY_MAKER)
+builder.add_edge(GET_TABLE_INFO, EVALUATE_DOCUMENT_SUITABILITY)
+builder.add_edge(EVALUATE_DOCUMENT_SUITABILITY, QUERY_MAKER)
 
 # QUERY_MAKER 노드 후 종료
 builder.add_edge(QUERY_MAKER, END)
