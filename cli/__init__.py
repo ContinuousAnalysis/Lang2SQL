@@ -237,6 +237,7 @@ def run_streamlit_cli_command(port: int) -> None:
     logger.info("Executing 'run-streamlit' command on port %d...", port)
     run_streamlit_command(port)
 
+
 @cli.command(name="query")
 @click.argument("question", type=str)
 @click.option(
