@@ -237,25 +237,6 @@ def run_streamlit_cli_command(port: int) -> None:
     logger.info("Executing 'run-streamlit' command on port %d...", port)
     run_streamlit_command(port)
 
-
-@cli.command(name="run-streamlit-docker")
-def run_streamlit_docker_command() -> None:
-    """
-    Docker 컨테이너 환경에서 Streamlit 애플리케이션을 실행하는 명령어입니다.
-
-    이 명령은 환경 변수 STREAMLIT_SERVER_PORT 를 읽어와
-    해당 포트에서 Streamlit 서버를 구동합니다.
-    docker-compose.yml 에서 설정한 환경 변수를 그대로 활용할 수 있습니다.
-
-    실행 예시:
-        lang2sql run-streamlit-docker
-    """
-
-    port = int(os.environ.get("STREAMLIT_SERVER_PORT", "8501"))
-    logger.info("Executing 'run-streamlit-docker' on port %d...", port)
-    run_streamlit_command(port)
-
-
 @cli.command(name="query")
 @click.argument("question", type=str)
 @click.option(

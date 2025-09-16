@@ -29,4 +29,4 @@ ENV PYTHONUNBUFFERED=1
 ENV STREAMLIT_SERVER_PORT=8501
 
 # 8. 실행 명령
-CMD ["lang2sql", "run-streamlit-docker"]
+CMD ["lang2sql", "run-streamlit"]
