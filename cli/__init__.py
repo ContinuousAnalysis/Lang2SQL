@@ -5,8 +5,8 @@ Lang2SQL CLI 프로그램입니다.
 명령어 예시: lang2sql --datahub_server http://localhost:8080 --run-streamlit
 """
 
-import os
 import logging
+import os
 import subprocess
 
 import click

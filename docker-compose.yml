@@ -1,5 +1,7 @@
 services:
   streamlit:
+    hostname: streamlit
+    container_name: streamlit
     build: .
     ports:
       - "8501:8501"
@@ -8,21 +10,24 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/streamlit_db
+      - STREAMLIT_SERVER_PORT=8501
+      - DATABASE_URL=postgresql://pgvector:pgvector@pgvector:5432/streamlit
     depends_on:
-      - db
+      - pgvector
 
-  db:
+  pgvector:
     image: pgvector/pgvector:pg17
-    container_name: pgvector-db
+    hostname: pgvector
+    container_name: pgvector
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: streamlit_db
+      POSTGRES_USER: pgvector
+      POSTGRES_PASSWORD: pgvector
+      POSTGRES_DB: streamlit
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
 volumes:
-  pgdata: 
+  pgdata:
