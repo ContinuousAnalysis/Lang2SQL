@@ -13,7 +13,7 @@ services:
       - ../.env
     environment:
       - STREAMLIT_SERVER_PORT=8501
-      - DATABASE_URL=postgresql://pgvector:pgvector@pgvector:5432/streamlit
+      - DATABASE_URL=postgresql://pgvector:pgvector@localhost:5432/streamlit
     depends_on:
       - pgvector
 

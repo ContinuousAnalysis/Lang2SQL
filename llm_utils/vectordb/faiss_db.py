@@ -3,11 +3,12 @@ FAISS VectorDB 구현
 """
 
 import os
-from langchain_community.vectorstores import FAISS
 from typing import Optional
 
-from llm_utils.tools import get_info_from_db
+from langchain_community.vectorstores import FAISS
+
 from llm_utils.llm import get_embeddings
+from llm_utils.tools import get_info_from_db
 
 
 def get_faiss_vector_db(vectordb_path: Optional[str] = None):
@@ -16,7 +17,7 @@ def get_faiss_vector_db(vectordb_path: Optional[str] = None):
 
     # 기본 경로 설정
     if vectordb_path is None:
-        vectordb_path = os.path.join(os.getcwd(), "table_info_db")
+        vectordb_path = os.path.join(os.getcwd(), "dev/table_info_db")
 
     try:
         db = FAISS.load_local(

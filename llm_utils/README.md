@@ -27,7 +27,7 @@ Lang2SQL 파이프라인에서 LLM, 검색(RAG), 그래프 워크플로우, DB �
 ### Depth 1.5: 벡터DB
 
 - **`vectordb/factory.py` → `get_vector_db()`**: `VECTORDB_TYPE`(`faiss`|`pgvector`)에 따라 인스턴스 반환.
-- **`vectordb/faiss_db.py`**: 로컬 디스크 `table_info_db` 로드/없으면 `tools.get_info_from_db()`로 빌드 후 저장.
+- **`vectordb/faiss_db.py`**: 로컬 디스크 `dev/table_info_db` 로드/없으면 `tools.get_info_from_db()`로 빌드 후 저장.
 - **`vectordb/pgvector_db.py`**: PGVector 컬렉션 연결, 없거나 비면 `from_documents`로 재구성.
 
 ### Depth 2: 데이터 소스/메타 수집

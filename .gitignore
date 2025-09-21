@@ -11,5 +11,4 @@ test_lhm/
 .vscode
 table_info_db
 ko_reranker_local
-create_faiss.py
 *.csv
