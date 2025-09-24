@@ -76,7 +76,7 @@ logger = logging.getLogger(__name__)
         "VectorDB 위치 설정\n"
         "- FAISS: 디렉토리 경로 (예: ./my_vectordb)\n"
         "- pgvector: 연결 문자열 (예: postgresql://user:pass@host:port/db)\n"
-        "기본값: FAISS는 './table_info_db', pgvector는 환경변수 사용"
+        "기본값: FAISS는 './dev/table_info_db', pgvector는 환경변수 사용"
     ),
 )
 # pylint: disable=redefined-outer-name
@@ -278,7 +278,7 @@ def run_streamlit_cli_command(port: int) -> None:
         "VectorDB 위치 설정\n"
         "- FAISS: 디렉토리 경로 (예: ./my_vectordb)\n"
         "- pgvector: 연결 문자열 (예: postgresql://user:pass@host:port/db)\n"
-        "기본값: FAISS는 './table_info_db', pgvector는 환경변수 사용"
+        "기본값: FAISS는 './dev/table_info_db', pgvector는 환경변수 사용"
     ),
 )
 def query_command(

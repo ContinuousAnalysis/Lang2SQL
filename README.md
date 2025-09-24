@@ -127,7 +127,7 @@ lang2sql --vectordb-type pgvector run-streamlit
 
 # 위치 지정 예시
 # FAISS: 인덱스 디렉토리 경로 지정
-lang2sql --vectordb-type faiss --vectordb-location ./table_info_db run-streamlit
+lang2sql --vectordb-type faiss --vectordb-location ./dev/table_info_db run-streamlit
 
 # pgvector: 연결 문자열 지정
 lang2sql --vectordb-type pgvector --vectordb-location "postgresql://user:pass@host:5432/db" run-streamlit
