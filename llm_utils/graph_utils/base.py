@@ -38,6 +38,10 @@ class QueryMakerState(TypedDict):
     top_n: int
     device: str
     question_gate_result: dict
+    # 다이얼렉트 정보
+    dialect_name: str
+    supports_ilike: bool
+    dialect_hints: list[str]
 
 
 # 노드 함수: QUESTION_GATE 노드
@@ -245,6 +249,10 @@ def query_maker_node(state: QueryMakerState):
             "user_input": combined_input,
             "user_database_env": state["user_database_env"],
             "searched_tables": searched_tables_json,
+            # 다이얼렉트 변수 전달
+            "dialect_name": state.get("dialect_name", ""),
+            "supports_ilike": state.get("supports_ilike", False),
+            "dialect_hints": ", ".join(state.get("dialect_hints", [])),
         }
     )
     state["generated_query"] = res
