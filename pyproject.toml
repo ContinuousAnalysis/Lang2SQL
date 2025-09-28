@@ -45,6 +45,7 @@ dependencies = [
   "google-cloud-bigquery>=3.20.1,<4.0.0",
   "pgvector==0.3.6",
   "langchain-postgres==0.0.15",
+  "trino>=0.329.0,<1.0.0",
 ]
 
 [project.scripts]
@@ -81,5 +82,4 @@ dev-dependencies = [
   "pre_commit==4.1.0",
   "pytest>=8.3.5",
 ]
-
 

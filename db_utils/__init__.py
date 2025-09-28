@@ -13,6 +13,7 @@ from .oracle_connector import OracleConnector
 from .duckdb_connector import DuckDBConnector
 from .databricks_connector import DatabricksConnector
 from .snowflake_connector import SnowflakeConnector
+from .trino_connector import TrinoConnector
 
 env_path = os.path.join(os.getcwd(), ".env")
 
@@ -54,6 +55,7 @@ def get_db_connector(db_type: Optional[str] = None, config: Optional[DBConfig] =
             "duckdb": DuckDBConnector,
             "databricks": DatabricksConnector,
             "snowflake": SnowflakeConnector,
+            "trino": TrinoConnector,
         }
 
     if db_type not in connector_map:
