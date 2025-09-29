@@ -256,7 +256,7 @@ def display_result(
             st.error(f"쿼리 실행 중 오류 발생: {e}")
             df = None
 
-        if df is not None and show_table_section:  
+        if df is not None and show_table_section:
             st.markdown("---")
             st.markdown("**쿼리 실행 결과:**")
             try:
