@@ -8,8 +8,9 @@ ClickHouse 데이터베이스에 실행한 결과를 출력합니다.
 import re
 
 import streamlit as st
-from langchain.chains.sql_database.prompt import SQL_PROMPTS
 from langchain_core.messages import AIMessage
+from interface.dialects import PRESET_DIALECTS, DialectOption
+from copy import deepcopy
 
 from db_utils import get_db_connector
 from db_utils.base_connector import BaseConnector
@@ -339,11 +340,70 @@ user_query = st.text_area(
     "쿼리를 입력하세요:",
     value=DEFAULT_QUERY,
 )
-user_database_env = st.selectbox(
-    "DB 환경정보를 입력하세요:",
-    options=SQL_PROMPTS.keys(),
-    index=0,
-)
+
+# DB 프리셋을 세션에 로드(편집 가능)
+if "dialects" not in st.session_state:
+    st.session_state["dialects"] = {k: v.to_dict() for k, v in PRESET_DIALECTS.items()}
+
+st.markdown("### DB 선택 및 관리")
+cols = st.columns(2)
+
+# 공통 변수 최소화
+dialects = st.session_state["dialects"]
+keys = list(dialects.keys())
+active = st.session_state.get("active_dialect", keys[0])
+
+with cols[0]:
+    user_database_env = st.selectbox(
+        "사용할 DB를 선택하세요:",
+        options=keys,
+        index=(keys.index(active) if active in keys else 0),
+    )
+    st.session_state["active_dialect"] = user_database_env
+    st.session_state["selected_dialect_option"] = dialects.get(
+        user_database_env, dialects[keys[0]]
+    )
+
+with cols[1]:
+    st.caption("선택된 DB 설정을 편집하거나 새로 추가할 수 있습니다.")
+
+with st.expander("DB 편집"):
+    edit_key = st.selectbox(
+        "편집할 DB를 선택하세요:",
+        options=keys,
+        index=(
+            keys.index(st.session_state["active_dialect"])
+            if st.session_state.get("active_dialect") in keys
+            else 0
+        ),
+        key="dialect_edit_selector",
+    )
+    # 편집 대상 선택 시 메인 선택과 동기화
+    st.session_state["active_dialect"] = edit_key
+    st.session_state["selected_dialect_option"] = dialects[edit_key]
+
+    current = deepcopy(dialects[edit_key])
+    _supports_ilike = st.checkbox(
+        "ILIKE 지원", value=bool(current.get("supports_ilike", False))
+    )
+    # limit_syntax 제거: hints로 사용자가 커버
+    _hints_text = st.text_area(
+        "hints (쉼표로 구분)",
+        value=", ".join(current.get("hints", [])),
+        help="예약어/함수/문법 힌트를 쉼표로 구분하여 입력",
+    )
+    if st.button("변경사항 저장", key="btn_save_dialect_edit"):
+        st.session_state["dialects"][edit_key] = DialectOption(
+            name=edit_key,
+            supports_ilike=_supports_ilike,
+            hints=[s.strip() for s in _hints_text.split(",") if s.strip()],
+        ).to_dict()
+        # 저장 후 선택된 다이얼렉트 옵션도 최신 값으로 동기화
+        st.session_state["selected_dialect_option"] = st.session_state["dialects"][
+            edit_key
+        ]
+        st.success(f"{edit_key} DB가 업데이트되었습니다.")
+
 
 _device_options = ["cpu", "cuda"]
 _default_device = st.session_state.get("default_device", "cpu")

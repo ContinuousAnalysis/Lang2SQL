@@ -82,6 +82,26 @@ def execute_query(
             "retriever_name": retriever_name,
             "top_n": top_n,
             "device": device,
+            # 다이얼렉트 정보 주입 (있다면 세션에서, 없으면 기본값)
+            "dialect_name": (
+                session_state.get("selected_dialect_option", {}).get("name")
+                if session_state is not None
+                else database_env
+            ),
+            "supports_ilike": (
+                bool(
+                    session_state.get("selected_dialect_option", {}).get(
+                        "supports_ilike", False
+                    )
+                )
+                if session_state is not None
+                else False
+            ),
+            "dialect_hints": (
+                session_state.get("selected_dialect_option", {}).get("hints", [])
+                if session_state is not None
+                else []
+            ),
         }
     )
 
