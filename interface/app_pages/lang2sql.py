@@ -5,22 +5,18 @@ Lang2SQL Streamlit 애플리케이션.
 ClickHouse 데이터베이스에 실행한 결과를 출력합니다.
 """
 
-import re
-
-import streamlit as st
-from langchain_core.messages import AIMessage
-from interface.dialects import PRESET_DIALECTS, DialectOption
 from copy import deepcopy
 
-from db_utils import get_db_connector
-from db_utils.base_connector import BaseConnector
-from viz.display_chart import DisplayChart
-from engine.query_executor import execute_query as execute_query_common
-from llm_utils.llm_response_parser import LLMResponseParser
-from infra.observability.token_usage import TokenUtils
-from llm_utils.graph_utils.enriched_graph import builder as enriched_builder
-from llm_utils.graph_utils.basic_graph import builder
+import pandas as pd
+import streamlit as st
+from langchain_core.messages import AIMessage
 
+from db_utils import get_db_connector
+from engine.query_executor import execute_query as execute_query_common
+from infra.observability.token_usage import TokenUtils
+from interface.core.dialects import PRESET_DIALECTS, DialectOption
+from llm_utils.llm_response_parser import LLMResponseParser
+from viz.display_chart import DisplayChart
 
 TITLE = "Lang2SQL"
 DEFAULT_QUERY = "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리"
@@ -35,6 +31,17 @@ SIDEBAR_OPTIONS = {
     "show_table": "Show Table",
     "show_chart": "Show Chart",
 }
+
+
+def _get_graph_builder(use_enriched: bool):
+    """
+    순환 import를 피하기 위해 사용 시점에 그래프 빌더를 import한다.
+    """
+    if use_enriched:
+        from llm_utils.graph_utils.enriched_graph import builder as _builder
+    else:
+        from llm_utils.graph_utils.basic_graph import builder as _builder
+    return _builder
 
 
 def execute_query(
@@ -241,6 +248,7 @@ def display_result(
 
     if show_table_section or show_chart_section:
         database = get_db_connector()
+        df = pd.DataFrame()
         try:
             sql_raw = (
                 res["generated_query"].content
@@ -255,9 +263,9 @@ def display_result(
         except Exception as e:
             st.markdown("---")
             st.error(f"쿼리 실행 중 오류 발생: {e}")
-            df = None
+            df = pd.DataFrame()
 
-        if df is not None and show_table_section:
+        if not df.empty and show_table_section:
             st.markdown("---")
             st.markdown("**쿼리 실행 결과:**")
             try:
@@ -309,32 +317,25 @@ if (
     "graph" not in st.session_state
     or st.session_state.get("use_enriched") != use_enriched
 ):
-    # 그래프 선택 로직
-    if use_enriched:
-        graph_builder = enriched_builder
-        graph_type = "확장된"
-    else:
-        graph_builder = builder
-        graph_type = "기본"
+    graph_builder = _get_graph_builder(use_enriched)
+    graph_type = "확장된" if use_enriched else "기본"
 
     st.session_state["graph"] = graph_builder.compile()
     st.session_state["use_enriched"] = use_enriched
     st.info(f"Lang2SQL이 성공적으로 시작되었습니다. ({graph_type} 워크플로우)")
 
+
 # 새로고침 버튼 추가
 if st.sidebar.button("Lang2SQL 새로고침"):
-    # 그래프 선택 로직
-    if st.session_state.get("use_enriched"):
-        graph_builder = enriched_builder
-        graph_type = "확장된"
-    else:
-        graph_builder = builder
-        graph_type = "기본"
+    use_enriched_curr = st.session_state.get("use_enriched", False)
+    graph_builder = _get_graph_builder(use_enriched_curr)
+    graph_type = "확장된" if use_enriched_curr else "기본"
 
     st.session_state["graph"] = graph_builder.compile()
     st.sidebar.success(
         f"Lang2SQL이 성공적으로 새로고침되었습니다. ({graph_type} 워크플로우)"
     )
+
 
 user_query = st.text_area(
     "쿼리를 입력하세요:",

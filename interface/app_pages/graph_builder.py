@@ -11,17 +11,17 @@ LangGraph 워크플로우를 Streamlit에서 구성하고 세션에 적용하는
 from typing import List
 
 import streamlit as st
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
 from llm_utils.graph_utils.base import (
-    QueryMakerState,
+    CONTEXT_ENRICHMENT,
     GET_TABLE_INFO,
     PROFILE_EXTRACTION,
-    CONTEXT_ENRICHMENT,
     QUERY_MAKER,
+    QueryMakerState,
+    context_enrichment_node,
     get_table_info_node,
     profile_extraction_node,
-    context_enrichment_node,
     query_maker_node,
 )
 
