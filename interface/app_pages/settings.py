@@ -9,6 +9,7 @@ from interface.app_pages.settings_sections.data_source_section import (
     render_data_source_section,
 )
 from interface.app_pages.settings_sections.llm_section import render_llm_section
+from interface.app_pages.settings_sections.db_section import render_db_section
 
 
 st.title("⚙️ 설정")
@@ -24,7 +25,7 @@ with tabs[1]:
     render_llm_section(config)
 
 with tabs[2]:
-    st.info("DB 연결 설정은 곧 제공됩니다.")
+    render_db_section()
 
 with tabs[3]:
     st.info("디바이스 설정은 곧 제공됩니다.")

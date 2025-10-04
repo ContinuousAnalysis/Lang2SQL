@@ -28,6 +28,7 @@ from interface.app_pages.components.llm_selector import render_sidebar_llm_selec
 from interface.app_pages.components.embedding_selector import (
     render_sidebar_embedding_selector,
 )
+from interface.app_pages.components.db_selector import render_sidebar_db_selector
 
 TITLE = "Lang2SQL"
 DEFAULT_QUERY = "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리"
@@ -50,6 +51,7 @@ config = load_config()
 render_sidebar_data_source_selector(config)
 render_sidebar_llm_selector()
 render_sidebar_embedding_selector()
+render_sidebar_db_selector()
 
 st.sidebar.markdown("### 워크플로우 선택")
 use_enriched = st.sidebar.checkbox(

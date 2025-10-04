@@ -6,6 +6,10 @@ from interface.core.config import (
     update_embedding_settings,
     Config,
     load_config,
+    save_llm_profile,
+    get_llm_registry,
+    save_embedding_profile,
+    get_embedding_registry,
 )
 
 
@@ -133,6 +137,7 @@ def render_llm_section(config: Config | None = None) -> None:
         )
         fields = _llm_fields(provider)
         values: dict[str, str | None] = {}
+        non_secret_values: dict[str, str | None] = {}
         for label, env_key, is_secret in fields:
             prefill = st.session_state.get(env_key) or os.getenv(env_key) or ""
             if is_secret:
@@ -140,31 +145,55 @@ def render_llm_section(config: Config | None = None) -> None:
                     label, value=prefill, type="password", key=f"llm_{env_key}"
                 )
             else:
-                values[env_key] = st.text_input(
-                    label, value=prefill, key=f"llm_{env_key}"
-                )
+                v = st.text_input(label, value=prefill, key=f"llm_{env_key}")
+                values[env_key] = v
+                non_secret_values[env_key] = v
 
-        # 메시지 영역: 버튼 컬럼 밖(섹션 폭)으로 배치하여 좁은 폭에 눌려 깨지는 문제 방지
+        # 메시지 영역
         llm_msg = st.empty()
 
-        save_cols = st.columns([1, 1, 2])
-        with save_cols[0]:
-            if st.button("저장", key="llm_save"):
+        st.markdown("**프로파일 저장 (비밀키 제외)**")
+        with st.form("llm_profile_save_form"):
+            prof_cols = st.columns([2, 2])
+            with prof_cols[0]:
+                profile_name = st.text_input("프로파일 이름", key="llm_profile_name")
+            with prof_cols[1]:
+                profile_note = st.text_input("메모(선택)", key="llm_profile_note")
+
+            submitted = st.form_submit_button("프로파일 저장")
+            if submitted:
                 try:
-                    update_llm_settings(provider=provider, values=values)
-                    llm_msg.success("LLM 설정이 저장되었습니다.")
+                    if not profile_name:
+                        llm_msg.warning("프로파일 이름을 입력하세요.")
+                    else:
+                        # 1) 환경/세션에 즉시 적용 (저장된 모든 값 사용: 사용자 요청)
+                        update_llm_settings(provider=provider, values=values)
+                        # 2) 디스크에 프로파일 저장 (비밀키 포함)
+                        save_llm_profile(
+                            name=profile_name,
+                            provider=provider,
+                            values=values,
+                            note=(profile_note or None),
+                        )
+                        llm_msg.success("프로파일이 저장 및 적용되었습니다.")
                 except Exception as e:
-                    llm_msg.error(f"저장 실패: {e}")
-        with save_cols[1]:
-            if st.button("검증", key="llm_validate"):
-                # 가벼운 검증: 필수 키 존재 여부만 확인
-                try:
-                    update_llm_settings(provider=provider, values=values)
-                    llm_msg.success(
-                        "형식 검증 완료. 실제 호출은 실행 경로에서 재검증됩니다."
-                    )
-                except Exception as e:
-                    llm_msg.error(f"검증 실패: {e}")
+                    llm_msg.error(f"프로파일 저장 실패: {e}")
+
+        # 저장된 프로파일 미리보기
+        reg = get_llm_registry()
+        if reg.profiles:
+            with st.expander("저장된 LLM 프로파일", expanded=False):
+                for p in reg.profiles:
+                    if p.fields:
+                        pairs = [
+                            f"{k}={p.fields.get(k, '')}"
+                            for k in sorted(p.fields.keys())
+                        ]
+                        fields_text = ", ".join(pairs)
+                    else:
+                        fields_text = "-"
+                    note_text = f" | note: {p.note}" if getattr(p, "note", None) else ""
+                    st.caption(f"- {p.name} ({p.provider}) | {fields_text}{note_text}")
 
     with emb_col:
         st.markdown("**Embeddings**")
@@ -201,18 +230,45 @@ def render_llm_section(config: Config | None = None) -> None:
         # 메시지 영역: 버튼 컬럼 밖(섹션 폭)
         emb_msg = st.empty()
 
-        e_cols = st.columns([1, 1, 2])
-        with e_cols[0]:
-            if st.button("저장", key="emb_save"):
+        st.markdown("**Embeddings 프로파일 저장 (시크릿 포함)**")
+        with st.form("embedding_profile_save_form"):
+            e_prof_cols = st.columns([2, 2])
+            with e_prof_cols[0]:
+                e_profile_name = st.text_input(
+                    "프로파일 이름", key="embedding_profile_name"
+                )
+            with e_prof_cols[1]:
+                e_profile_note = st.text_input(
+                    "메모(선택)", key="embedding_profile_note"
+                )
+
+            e_submitted = st.form_submit_button("프로파일 저장")
+            if e_submitted:
                 try:
-                    update_embedding_settings(provider=e_provider, values=e_values)
-                    emb_msg.success("Embeddings 설정이 저장되었습니다.")
+                    if not e_profile_name:
+                        emb_msg.warning("프로파일 이름을 입력하세요.")
+                    else:
+                        update_embedding_settings(provider=e_provider, values=e_values)
+                        save_embedding_profile(
+                            name=e_profile_name,
+                            provider=e_provider,
+                            values=e_values,
+                            note=(e_profile_note or None),
+                        )
+                        emb_msg.success("Embeddings 프로파일이 저장 및 적용되었습니다.")
                 except Exception as e:
-                    emb_msg.error(f"저장 실패: {e}")
-        with e_cols[1]:
-            if st.button("검증", key="emb_validate"):
-                try:
-                    update_embedding_settings(provider=e_provider, values=e_values)
-                    emb_msg.success("형식 검증 완료.")
-                except Exception as e:
-                    emb_msg.error(f"검증 실패: {e}")
+                    emb_msg.error(f"프로파일 저장 실패: {e}")
+        e_reg = get_embedding_registry()
+        if e_reg.profiles:
+            with st.expander("저장된 Embeddings 프로파일", expanded=False):
+                for p in e_reg.profiles:
+                    if p.fields:
+                        pairs = [
+                            f"{k}={p.fields.get(k, '')}"
+                            for k in sorted(p.fields.keys())
+                        ]
+                        fields_text = ", ".join(pairs)
+                    else:
+                        fields_text = "-"
+                    note_text = f" | note: {p.note}" if getattr(p, "note", None) else ""
+                    st.caption(f"- {p.name} ({p.provider}) | {fields_text}{note_text}")
