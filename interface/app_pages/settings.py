@@ -14,7 +14,7 @@ st.title("⚙️ 설정")
 
 config = load_config()
 
-tabs = st.tabs(["데이터 소스", "LLM", "DB", "VectorDB", "Device"])
+tabs = st.tabs(["데이터 소스", "LLM", "DB", "Device"])
 
 with tabs[0]:
     render_data_source_section(config)
@@ -26,9 +26,6 @@ with tabs[2]:
     st.info("DB 연결 설정은 곧 제공됩니다.")
 
 with tabs[3]:
-    st.info("VectorDB 설정은 곧 제공됩니다.")
-
-with tabs[4]:
     st.info("디바이스 설정은 곧 제공됩니다.")
 
 st.divider()

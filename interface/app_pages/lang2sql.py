@@ -20,6 +20,10 @@ from interface.core.dialects import PRESET_DIALECTS, DialectOption
 from interface.core.lang2sql_runner import run_lang2sql
 from interface.core.result_renderer import display_result
 from interface.core.session_utils import init_graph
+from interface.core.config import load_config
+from interface.app_pages.components.data_source_selector import (
+    render_sidebar_data_source_selector,
+)
 
 TITLE = "Lang2SQL"
 DEFAULT_QUERY = "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리"
@@ -36,6 +40,10 @@ SIDEBAR_OPTIONS = {
 }
 
 st.title(TITLE)
+
+config = load_config()
+
+render_sidebar_data_source_selector(config)
 
 st.sidebar.markdown("### 워크플로우 선택")
 use_enriched = st.sidebar.checkbox(
