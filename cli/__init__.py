@@ -57,18 +57,13 @@ logger = configure_logging()
 )
 @click.option(
     "--vectordb-type",
-    type=click.Choice(["faiss", "pgvector"]),
-    default="faiss",
-    help="사용할 벡터 데이터베이스 타입 (기본값: faiss)",
+    default=None,
+    help="[Deprecated] VectorDB 타입. 이제는 UI 설정 > 데이터 소스에서 관리하세요.",
 )
 @click.option(
     "--vectordb-location",
-    help=(
-        "VectorDB 위치 설정\n"
-        "- FAISS: 디렉토리 경로 (예: ./my_vectordb)\n"
-        "- pgvector: 연결 문자열 (예: postgresql://user:pass@host:port/db)\n"
-        "기본값: FAISS는 './dev/table_info_db', pgvector는 환경변수 사용"
-    ),
+    default=None,
+    help="[Deprecated] VectorDB 위치. 이제는 UI 설정 > 데이터 소스에서 관리하세요.",
 )
 def cli(
     ctx: click.Context,
@@ -77,8 +72,8 @@ def cli(
     port: int,
     env_file_path: str | None = None,
     prompt_dir_path: str | None = None,
-    vectordb_type: str = "faiss",
-    vectordb_location: str = None,
+    vectordb_type: str | None = None,
+    vectordb_location: str | None = None,
 ) -> None:
     """Lang2SQL CLI 엔트리포인트.
 
@@ -88,10 +83,7 @@ def cli(
 
     try:
         initialize_environment(
-            env_file_path=env_file_path,
-            prompt_dir_path=prompt_dir_path,
-            vectordb_type=vectordb_type,
-            vectordb_location=vectordb_location,
+            env_file_path=env_file_path, prompt_dir_path=prompt_dir_path
         )
     except Exception:
         logger.error("Initialization failed.", exc_info=True)
@@ -107,6 +99,13 @@ def cli(
     if datahub_server:
         click.secho(
             "[Deprecated] --datahub_server 옵션은 더 이상 사용되지 않습니다. 설정 > 데이터 소스 탭에서 설정하세요.",
+            fg="yellow",
+        )
+
+    # Deprecated 안내: CLI에서 VectorDB 설정은 더 이상 처리하지 않습니다
+    if vectordb_type or vectordb_location:
+        click.secho(
+            "[Deprecated] --vectordb-type/--vectordb-location 옵션은 더 이상 사용되지 않습니다. 설정 > 데이터 소스 탭에서 설정하세요.",
             fg="yellow",
         )
 
