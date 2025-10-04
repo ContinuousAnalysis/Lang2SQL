@@ -16,11 +16,6 @@ def render_sidebar_data_source_selector(config=None) -> None:
     registry = get_data_sources_registry()
 
     st.sidebar.markdown("### 데이터 소스")
-    enable_data_source = st.sidebar.checkbox(
-        "데이터 소스 적용", value=True, key="enable_data_source"
-    )
-    if not enable_data_source:
-        return
 
     mode_index = 0 if (config.data_source_mode or "datahub").lower() == "datahub" else 1
     selected_mode = st.sidebar.radio(
