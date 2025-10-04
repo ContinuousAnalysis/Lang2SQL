@@ -21,14 +21,13 @@ from interface.core.lang2sql_runner import run_lang2sql
 from interface.core.result_renderer import display_result
 from interface.core.session_utils import init_graph
 from interface.core.config import load_config
-from interface.app_pages.components.data_source_selector import (
+from interface.app_pages.sidebar_components import (
     render_sidebar_data_source_selector,
-)
-from interface.app_pages.components.llm_selector import render_sidebar_llm_selector
-from interface.app_pages.components.embedding_selector import (
+    render_sidebar_llm_selector,
     render_sidebar_embedding_selector,
+    render_sidebar_db_selector,
 )
-from interface.app_pages.components.db_selector import render_sidebar_db_selector
+
 
 TITLE = "Lang2SQL"
 DEFAULT_QUERY = "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리"
@@ -49,9 +48,17 @@ st.title(TITLE)
 config = load_config()
 
 render_sidebar_data_source_selector(config)
+st.sidebar.divider()
 render_sidebar_llm_selector()
+st.sidebar.divider()
 render_sidebar_embedding_selector()
+st.sidebar.divider()
 render_sidebar_db_selector()
+st.sidebar.divider()
+
+st.sidebar.title("Output Settings")
+for key, label in SIDEBAR_OPTIONS.items():
+    st.sidebar.checkbox(label, value=True, key=key)
 
 st.sidebar.markdown("### 워크플로우 선택")
 use_enriched = st.sidebar.checkbox(
@@ -127,10 +134,6 @@ user_retriever = st.selectbox(
     format_func=lambda x: retriever_options[x],
 )
 user_top_n = st.slider("검색할 테이블 정보 개수:", min_value=1, max_value=20, value=5)
-
-st.sidebar.title("Output Settings")
-for key, label in SIDEBAR_OPTIONS.items():
-    st.sidebar.checkbox(label, value=True, key=key)
 
 if st.button("쿼리 실행"):
     res = run_lang2sql(
