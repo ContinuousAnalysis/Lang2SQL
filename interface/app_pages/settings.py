@@ -8,6 +8,7 @@ from interface.core.config import load_config
 from interface.app_pages.settings_sections.data_source_section import (
     render_data_source_section,
 )
+from interface.app_pages.settings_sections.llm_section import render_llm_section
 
 
 st.title("⚙️ 설정")
@@ -20,7 +21,7 @@ with tabs[0]:
     render_data_source_section(config)
 
 with tabs[1]:
-    st.info("LLM 설정은 곧 제공됩니다.")
+    render_llm_section(config)
 
 with tabs[2]:
     st.info("DB 연결 설정은 곧 제공됩니다.")

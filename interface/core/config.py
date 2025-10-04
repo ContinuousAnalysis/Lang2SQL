@@ -349,3 +349,74 @@ def update_vectordb_settings(
             st.session_state["vectordb_location"] = vloc
         except Exception:
             pass
+
+
+# ---- LLM & Embeddings helpers ----
+
+
+def _put_env(key: str, value: str | None) -> None:
+    if value is None:
+        return
+    os.environ[key] = value
+
+
+def _put_session(key: str, value: str | None) -> None:
+    if st is None:
+        return
+    try:
+        st.session_state[key] = value
+    except Exception:
+        pass
+
+
+def update_llm_settings(*, provider: str, values: dict[str, str | None]) -> None:
+    """Update chat LLM settings from UI into process env and session.
+
+    This function mirrors the environment-variable based configuration consumed by
+    llm_utils.llm.factory.get_llm(). Only sets provided keys; missing values are left as-is.
+    """
+    provider_norm = (provider or "").lower()
+    if provider_norm not in {
+        "openai",
+        "azure",
+        "bedrock",
+        "gemini",
+        "ollama",
+        "huggingface",
+    }:
+        raise ValueError(f"지원하지 않는 LLM 공급자: {provider}")
+
+    # Core selector
+    _put_env("LLM_PROVIDER", provider_norm)
+    _put_session("LLM_PROVIDER", provider_norm)
+
+    # Provider-specific fields (keys exactly as factory expects)
+    for k, v in (values or {}).items():
+        if v is not None:
+            _put_env(k, v)
+            _put_session(k, v)
+
+
+def update_embedding_settings(*, provider: str, values: dict[str, str | None]) -> None:
+    """Update Embeddings settings from UI into process env and session.
+
+    Mirrors env vars consumed by llm_utils.llm.factory.get_embeddings().
+    """
+    provider_norm = (provider or "").lower()
+    if provider_norm not in {
+        "openai",
+        "azure",
+        "bedrock",
+        "gemini",
+        "ollama",
+        "huggingface",
+    }:
+        raise ValueError(f"지원하지 않는 Embedding 공급자: {provider}")
+
+    _put_env("EMBEDDING_PROVIDER", provider_norm)
+    _put_session("EMBEDDING_PROVIDER", provider_norm)
+
+    for k, v in (values or {}).items():
+        if v is not None:
+            _put_env(k, v)
+            _put_session(k, v)
