@@ -16,24 +16,17 @@ from .models import (
 )
 
 from .settings import (
-    DEFAULT_DATAHUB_SERVER,
-    DEFAULT_VECTORDB_TYPE,
-    DEFAULT_VECTORDB_LOCATION,
     load_config,
-    _get_session_value,
     update_datahub_server,
     update_data_source_mode,
     update_vectordb_settings,
     update_llm_settings,
     update_embedding_settings,
     update_db_settings,
-    _put_env,
-    _put_session,
 )
 
 from .registry_data_sources import (
     get_data_sources_registry,
-    _save_registry,
     add_datahub_source,
     update_datahub_source,
     delete_datahub_source,
@@ -44,7 +37,6 @@ from .registry_data_sources import (
 
 from .registry_db import (
     get_db_connections_registry,
-    _save_db_registry,
     add_db_connection,
     update_db_connection,
     delete_db_connection,
@@ -53,18 +45,16 @@ from .registry_db import (
 from .registry_llm import (
     get_llm_registry,
     save_llm_profile,
-    _save_llm_registry,
     get_embedding_registry,
     save_embedding_profile,
-    _save_embedding_registry,
 )
 
 from .paths import (
-    _get_registry_file_path,
-    _get_db_registry_file_path,
-    _get_llm_registry_file_path,
-    _get_embedding_registry_file_path,
-    _ensure_parent_dir,
+    get_registry_file_path,
+    get_db_registry_file_path,
+    get_llm_registry_file_path,
+    get_embedding_registry_file_path,
+    ensure_parent_dir,
 )
 
 from .persist import (
@@ -90,24 +80,16 @@ __all__ = [
     "LLMRegistry",
     "EmbeddingProfile",
     "EmbeddingRegistry",
-    # Defaults
-    "DEFAULT_DATAHUB_SERVER",
-    "DEFAULT_VECTORDB_TYPE",
-    "DEFAULT_VECTORDB_LOCATION",
     # Settings APIs
     "load_config",
-    "_get_session_value",
     "update_datahub_server",
     "update_data_source_mode",
     "update_vectordb_settings",
     "update_llm_settings",
     "update_embedding_settings",
     "update_db_settings",
-    "_put_env",
-    "_put_session",
     # Registries - data sources
     "get_data_sources_registry",
-    "_save_registry",
     "add_datahub_source",
     "update_datahub_source",
     "delete_datahub_source",
@@ -116,23 +98,20 @@ __all__ = [
     "delete_vectordb_source",
     # Registries - db connections
     "get_db_connections_registry",
-    "_save_db_registry",
     "add_db_connection",
     "update_db_connection",
     "delete_db_connection",
     # Registries - llm/embedding
     "get_llm_registry",
     "save_llm_profile",
-    "_save_llm_registry",
     "get_embedding_registry",
     "save_embedding_profile",
-    "_save_embedding_registry",
     # Persistence helpers and paths (for backward compatibility)
-    "_get_registry_file_path",
-    "_get_db_registry_file_path",
-    "_get_llm_registry_file_path",
-    "_get_embedding_registry_file_path",
-    "_ensure_parent_dir",
+    "get_registry_file_path",
+    "get_db_registry_file_path",
+    "get_llm_registry_file_path",
+    "get_embedding_registry_file_path",
+    "ensure_parent_dir",
     "save_registry_to_disk",
     "save_db_registry_to_disk",
     "save_llm_registry_to_disk",

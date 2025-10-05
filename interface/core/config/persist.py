@@ -17,41 +17,41 @@ from .models import (
     EmbeddingProfile,
 )
 from .paths import (
-    _get_registry_file_path,
-    _get_db_registry_file_path,
-    _get_llm_registry_file_path,
-    _get_embedding_registry_file_path,
-    _ensure_parent_dir,
+    get_registry_file_path,
+    get_db_registry_file_path,
+    get_llm_registry_file_path,
+    get_embedding_registry_file_path,
+    ensure_parent_dir,
 )
 
 
 def save_registry_to_disk(registry: DataSourcesRegistry) -> None:
-    path = _get_registry_file_path()
-    _ensure_parent_dir(path)
+    path = get_registry_file_path()
+    ensure_parent_dir(path)
     payload = asdict(registry)
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
 def save_db_registry_to_disk(registry: DBConnectionsRegistry) -> None:
-    path = _get_db_registry_file_path()
-    _ensure_parent_dir(path)
+    path = get_db_registry_file_path()
+    ensure_parent_dir(path)
     payload = asdict(registry)
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
 def save_llm_registry_to_disk(registry: LLMRegistry) -> None:
-    path = _get_llm_registry_file_path()
-    _ensure_parent_dir(path)
+    path = get_llm_registry_file_path()
+    ensure_parent_dir(path)
     payload = asdict(registry)
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
 
 
 def save_embedding_registry_to_disk(registry: EmbeddingRegistry) -> None:
-    path = _get_embedding_registry_file_path()
-    _ensure_parent_dir(path)
+    path = get_embedding_registry_file_path()
+    ensure_parent_dir(path)
     payload = asdict(registry)
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
@@ -95,7 +95,7 @@ def _parse_vectordb_list(items: List[Dict[str, Any]]) -> List[VectorDBSource]:
 
 
 def load_registry_from_disk() -> DataSourcesRegistry:
-    path = _get_registry_file_path()
+    path = get_registry_file_path()
     if not path.exists():
         return DataSourcesRegistry()
     with path.open("r", encoding="utf-8") as f:
@@ -141,7 +141,7 @@ def _parse_db_conn_list(items: List[Dict[str, Any]]) -> List[DBConnectionProfile
 
 
 def load_db_registry_from_disk() -> DBConnectionsRegistry:
-    path = _get_db_registry_file_path()
+    path = get_db_registry_file_path()
     if not path.exists():
         return DBConnectionsRegistry()
     with path.open("r", encoding="utf-8") as f:
@@ -169,7 +169,7 @@ def _parse_llm_profiles(items: List[Dict[str, Any]]) -> List[LLMProfile]:
 
 
 def load_llm_registry_from_disk() -> LLMRegistry:
-    path = _get_llm_registry_file_path()
+    path = get_llm_registry_file_path()
     if not path.exists():
         return LLMRegistry()
     with path.open("r", encoding="utf-8") as f:
@@ -195,7 +195,7 @@ def _parse_embedding_profiles(items: List[Dict[str, Any]]) -> List[EmbeddingProf
 
 
 def load_embedding_registry_from_disk() -> EmbeddingRegistry:
-    path = _get_embedding_registry_file_path()
+    path = get_embedding_registry_file_path()
     if not path.exists():
         return EmbeddingRegistry()
     with path.open("r", encoding="utf-8") as f:
