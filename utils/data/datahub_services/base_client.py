@@ -6,7 +6,6 @@ DataHub GMS 서버와의 기본 연결 및 통신 기능을 제공합니다.
 
 import requests
 from datahub.emitter.rest_emitter import DatahubRestEmitter
-from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
 
 
 class DataHubBaseClient:

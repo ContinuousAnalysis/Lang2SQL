@@ -4,11 +4,12 @@ DataHub 쿼리 서비스 모듈
 DataHub의 쿼리 관련 기능을 제공합니다.
 """
 
-from data_utils.queries import (
+from utils.data.datahub_services.base_client import DataHubBaseClient
+from utils.data.queries import (
+    GLOSSARY_TERMS_BY_URN_QUERY,
     LIST_QUERIES_QUERY,
     QUERIES_BY_URN_QUERY,
 )
-from data_utils.datahub_services.base_client import DataHubBaseClient
 
 
 class QueryService:
@@ -154,7 +155,5 @@ class QueryService:
         Returns:
             dict: glossary terms 정보
         """
-        from data_utils.queries import GLOSSARY_TERMS_BY_URN_QUERY
-
         variables = {"urn": dataset_urn}
         return self.client.execute_graphql_query(GLOSSARY_TERMS_BY_URN_QUERY, variables)

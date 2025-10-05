@@ -10,9 +10,9 @@ import pandas as pd
 import streamlit as st
 from langchain_core.messages import AIMessage
 
-from db_utils import get_db_connector
 from infra.observability.token_usage import TokenUtils
 from llm_utils.llm_response_parser import LLMResponseParser
+from utils.databases import DatabaseFactory
 from viz.display_chart import DisplayChart
 
 
@@ -154,7 +154,7 @@ def display_result(res: dict) -> None:
         st.info("QUERY_MAKER 없이 실행되었습니다. 검색된 테이블 정보만 표시합니다.")
 
     if show_table_section or show_chart_section:
-        database = get_db_connector()
+        database = DatabaseFactory.get_connector()
         df = pd.DataFrame()
         try:
             sql_raw = (
