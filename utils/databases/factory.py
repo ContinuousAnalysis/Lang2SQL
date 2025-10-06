@@ -7,6 +7,7 @@
 """
 
 import importlib
+import inspect
 import os
 from typing import Optional
 
@@ -25,18 +26,24 @@ class DatabaseFactory:
     @staticmethod
     def get_connector(db_type: Optional[str] = None, config: Optional[DBConfig] = None):
         """
-        주어진 DB 타입에 맞는 Connector 인스턴스를 반환합니다.
+        주어진 DB 타입에 해당하는 Connector 인스턴스를 반환합니다.
+
+        지정된 DB 타입에 맞는 커넥터 모듈을 동적으로 로드하고,
+        해당 모듈 내의 Connector 클래스를 탐색하여 인스턴스를 생성합니다.
+        DB 타입이 지정되지 않은 경우 환경 변수(DB_TYPE)에서 자동으로 가져옵니다.
 
         Args:
-            db_type (Optional[str]): DB 타입 문자열. (예: 'postgres', 'mysql', 'trino')
-            config (Optional[DBConfig]): DB 연결 설정 객체.
-                지정되지 않은 경우 환경변수에서 자동 로드합니다.
+            db_type (Optional[str]): 데이터베이스 타입 문자열 (예: 'postgres', 'mysql', 'trino').
+            config (Optional[DBConfig]): 데이터베이스 연결 설정 객체.
+                지정되지 않은 경우 환경 변수에서 자동으로 로드됩니다.
 
         Returns:
-            BaseConnector: 지정된 DB 타입에 맞는 Connector 인스턴스.
+            BaseConnector: 주어진 DB 타입에 해당하는 Connector 인스턴스.
 
         Raises:
-            ValueError: 지원되지 않는 DB 타입이거나 모듈을 로드할 수 없는 경우.
+            ValueError: DB_TYPE이 지정되지 않았거나,
+                지원되지 않는 DB 타입이거나,
+                모듈 또는 Connector 클래스를 찾을 수 없는 경우.
         """
         if not db_type:
             db_type = os.getenv("DB_TYPE")
@@ -50,10 +57,17 @@ class DatabaseFactory:
         try:
             module_name = f"utils.databases.connector.{db_type}_connector"
             module = importlib.import_module(module_name)
-            connector_class = getattr(module, f"{db_type.capitalize()}Connector")
+
+            connector_class = None
+            for name, cls in inspect.getmembers(module, inspect.isclass):
+                if name.lower() == f"{db_type}connector":
+                    connector_class = cls
+                    break
+            if connector_class is None:
+                raise ValueError(f"No matching Connector class found for {db_type}")
         except (ImportError, AttributeError) as e:
             logger.error(
-                "지원되지 않는 DB 타입이거나 모듈을 로드할 수 없습니다: {%s}",
+                "지원되지 않는 DB 타입이거나 모듈을 로드할 수 없습니다: %s",
                 db_type,
             )
             raise ValueError(f"Unsupported DB type: {db_type}") from e
