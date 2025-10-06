@@ -116,7 +116,8 @@ class TrinoConnector(BaseConnector):
         finally:
             try:
                 cursor.close()
-            except e:
+                logger.info("Cursor closed successfully.")
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.error("Failed to close cursor: %s", e)
 
     def close(self) -> None:
