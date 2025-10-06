@@ -4,12 +4,12 @@ DataHub 용어집 서비스 모듈
 DataHub의 glossary 관련 기능을 제공합니다.
 """
 
-from data_utils.queries import (
-    ROOT_GLOSSARY_NODES_QUERY,
+from utils.data.datahub_services.base_client import DataHubBaseClient
+from utils.data.queries import (
     GLOSSARY_NODE_QUERY,
     GLOSSARY_TERMS_BY_URN_QUERY,
+    ROOT_GLOSSARY_NODES_QUERY,
 )
-from data_utils.datahub_services.base_client import DataHubBaseClient
 
 
 class GlossaryService:

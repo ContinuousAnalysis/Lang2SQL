@@ -7,10 +7,10 @@ DataHub 메타데이터 페처 - 리팩토링된 버전
 기존 코드와의 완벽한 호환성을 보장합니다.
 """
 
-from data_utils.datahub_services.base_client import DataHubBaseClient
-from data_utils.datahub_services.metadata_service import MetadataService
-from data_utils.datahub_services.query_service import QueryService
-from data_utils.datahub_services.glossary_service import GlossaryService
+from utils.data.datahub_services.base_client import DataHubBaseClient
+from utils.data.datahub_services.glossary_service import GlossaryService
+from utils.data.datahub_services.metadata_service import MetadataService
+from utils.data.datahub_services.query_service import QueryService
 
 
 class DatahubMetadataFetcher:

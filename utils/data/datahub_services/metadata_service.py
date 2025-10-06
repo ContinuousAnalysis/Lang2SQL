@@ -4,15 +4,16 @@ DataHub 메타데이터 서비스 모듈
 테이블 메타데이터, 리니지, URN 관련 기능을 제공합니다.
 """
 
+from collections import defaultdict
+
+from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
 from datahub.metadata.schema_classes import (
     DatasetPropertiesClass,
     SchemaMetadataClass,
     UpstreamLineageClass,
 )
-from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
-from collections import defaultdict
 
-from data_utils.datahub_services.base_client import DataHubBaseClient
+from utils.data.datahub_services.base_client import DataHubBaseClient
 
 
 class MetadataService:

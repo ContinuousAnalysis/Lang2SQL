@@ -1,15 +1,16 @@
 import os
+
 import streamlit as st
 
 from interface.core.config import (
-    get_db_connections_registry,
     add_db_connection,
-    update_db_connection,
     delete_db_connection,
+    get_db_connections_registry,
+    update_db_connection,
     update_db_settings,
 )
-from db_utils import get_db_connector, load_config_from_env
-
+from utils.databases import DatabaseFactory
+from utils.databases.factory import load_config_from_env
 
 DB_TYPES = [
     "postgresql",
@@ -216,7 +217,8 @@ def render_db_section() -> None:
                         update_db_settings(
                             db_type=new_type, values=values, secrets=secrets
                         )
-                        connector = get_db_connector(db_type=new_type)
+
+                        connector = DatabaseFactory.get_connector(db_type=new_type)
                         # 간단한 SELECT 1 테스트 (DB마다 상이할 수 있음)
                         test_sql = (
                             "SELECT 1"

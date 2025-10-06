@@ -1,0 +1,2 @@
+CREATE DATABASE lang2sql;
+CREATE DATABASE test;

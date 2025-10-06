@@ -1,0 +1,5 @@
+CREATE USER lang2sql WITH PASSWORD 'lang2sqlpassword';
+GRANT ALL PRIVILEGES ON DATABASE lang2sql TO lang2sql;
+
+CREATE USER test WITH PASSWORD 'testpassword';
+GRANT ALL PRIVILEGES ON DATABASE test TO test;
