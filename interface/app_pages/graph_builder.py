@@ -13,7 +13,7 @@ from typing import List
 import streamlit as st
 from langgraph.graph import END, StateGraph
 
-from llm_utils.graph_utils.base import (
+from utils.llm.graph_utils.base import (
     CONTEXT_ENRICHMENT,
     GET_TABLE_INFO,
     PROFILE_EXTRACTION,

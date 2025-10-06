@@ -11,8 +11,8 @@ import streamlit as st
 from langchain_core.messages import AIMessage
 
 from infra.observability.token_usage import TokenUtils
-from llm_utils.llm_response_parser import LLMResponseParser
 from utils.databases import DatabaseFactory
+from utils.llm.llm_response_parser import LLMResponseParser
 from viz.display_chart import DisplayChart
 
 

@@ -4,12 +4,12 @@ pgvector VectorDB 구현
 
 import os
 from typing import Optional
+
 import psycopg2
-from sqlalchemy.orm import Session
 from langchain_postgres.vectorstores import PGVector
 
-from llm_utils.tools import get_info_from_db
-from llm_utils.llm import get_embeddings
+from utils.llm.core import get_embeddings
+from utils.llm.tools import get_info_from_db
 
 
 def _check_collection_exists(connection_string: str, collection_name: str) -> bool:

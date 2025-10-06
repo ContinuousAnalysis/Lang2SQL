@@ -8,21 +8,13 @@ LLM 체인 생성 모듈.
 - Question Gate (SQL 적합성 분류)
 """
 
-import os
-from langchain_core.prompts import (
-    ChatPromptTemplate,
-    SystemMessagePromptTemplate,
-)
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate
 from pydantic import BaseModel, Field
-from llm_utils.output_parser.question_suitability import QuestionSuitability
-from llm_utils.output_parser.document_suitability import (
-    DocumentSuitabilityList,
-)
-
-from llm_utils.llm import get_llm
 
 from prompt.template_loader import get_prompt_template
-
+from utils.llm.core import get_llm
+from utils.llm.output_parser.document_suitability import DocumentSuitabilityList
+from utils.llm.output_parser.question_suitability import QuestionSuitability
 
 llm = get_llm()
 

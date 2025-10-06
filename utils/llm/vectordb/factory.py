@@ -5,8 +5,8 @@ VectorDB 팩토리 모듈 - 환경 변수에 따라 적절한 VectorDB 인스턴
 import os
 from typing import Optional
 
-from llm_utils.vectordb.faiss_db import get_faiss_vector_db
-from llm_utils.vectordb.pgvector_db import get_pgvector_db
+from utils.llm.vectordb.faiss_db import get_faiss_vector_db
+from utils.llm.vectordb.pgvector_db import get_pgvector_db
 
 
 def get_vector_db(

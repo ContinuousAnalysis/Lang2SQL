@@ -4,16 +4,16 @@
 이 패키지는 Lang2SQL의 워크플로우 그래프 구성과 관련된 모듈들을 포함합니다.
 """
 
-from .base import (
-    QueryMakerState,
-    GET_TABLE_INFO,
-    QUERY_MAKER,
-    PROFILE_EXTRACTION,
+from utils.llm.graph_utils.base import (
     CONTEXT_ENRICHMENT,
-    get_table_info_node,
-    query_maker_node,
-    profile_extraction_node,
+    GET_TABLE_INFO,
+    PROFILE_EXTRACTION,
+    QUERY_MAKER,
+    QueryMakerState,
     context_enrichment_node,
+    get_table_info_node,
+    profile_extraction_node,
+    query_maker_node,
 )
 
 from .basic_graph import builder as basic_builder
