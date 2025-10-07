@@ -7,8 +7,8 @@ from typing import Optional
 
 from langchain_community.vectorstores import FAISS
 
-from llm_utils.llm import get_embeddings
-from llm_utils.tools import get_info_from_db
+from utils.llm.core import get_embeddings
+from utils.llm.tools import get_info_from_db
 
 
 def get_faiss_vector_db(vectordb_path: Optional[str] = None):

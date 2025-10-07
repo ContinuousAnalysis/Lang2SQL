@@ -5,7 +5,8 @@ LLM 구조화 출력으로부터 테이블별 적합성 평가 결과를 표현�
 최상위는 테이블명(string) -> 평가 객체 매핑을 담는 Root 모델입니다.
 """
 
-from typing import Dict, List
+from typing import List
+
 from pydantic import BaseModel, Field
 
 

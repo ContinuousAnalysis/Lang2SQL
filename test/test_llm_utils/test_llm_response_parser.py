@@ -9,7 +9,7 @@ LLMResponseParser 클래스의 기능을 테스트하는 단위 테스트 모듈
 
 import unittest
 
-from llm_utils.llm_response_parser import LLMResponseParser
+from utils.llm.llm_response_parser import LLMResponseParser
 
 
 class TestLLMResponseParser(unittest.TestCase):

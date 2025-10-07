@@ -3,18 +3,17 @@ DataHub/VectorDB/DB/LLM/Embedding 관련 설정 업데이트를 제공합니다.
 """
 
 import os
-from typing import Any, Dict, Optional
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 try:
     import streamlit as st  # type: ignore
 except Exception:  # pragma: no cover - streamlit may not be present in non-UI contexts
     st = None  # type: ignore
 
-from llm_utils.tools import set_gms_server
+from utils.llm.tools import set_gms_server
 
 from .models import Config
-
 
 DEFAULT_DATAHUB_SERVER = "http://localhost:8080"
 DEFAULT_VECTORDB_TYPE = os.getenv("VECTORDB_TYPE", "faiss").lower()
@@ -202,7 +201,7 @@ def update_llm_settings(*, provider: str, values: dict[str, str | None]) -> None
     """Update chat LLM settings from UI into process env and session.
 
     This function mirrors the environment-variable based configuration consumed by
-    llm_utils.llm.factory.get_llm(). Only sets provided keys; missing values are left as-is.
+    utils.llm.core.factory.get_llm(). Only sets provided keys; missing values are left as-is.
     """
     provider_norm = (provider or "").lower()
     if provider_norm not in {
@@ -229,7 +228,7 @@ def update_llm_settings(*, provider: str, values: dict[str, str | None]) -> None
 def update_embedding_settings(*, provider: str, values: dict[str, str | None]) -> None:
     """Update Embeddings settings from UI into process env and session.
 
-    Mirrors env vars consumed by llm_utils.llm.factory.get_embeddings().
+    Mirrors env vars consumed by utils.llm.core.factory.get_embeddings().
     """
     provider_norm = (provider or "").lower()
     if provider_norm not in {

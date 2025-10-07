@@ -68,7 +68,6 @@ include = [
 packages = [
   "cli",
   "interface",
-  "llm_utils",
   "engine",
   "infra",
   "viz",

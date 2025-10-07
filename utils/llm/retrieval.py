@@ -1,12 +1,11 @@
 import os
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
+
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from llm_utils.vectordb import get_vector_db
+from utils.llm.vectordb import get_vector_db
 
 
 def load_reranker_model(device: str = "cpu"):

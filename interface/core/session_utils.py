@@ -24,9 +24,9 @@ def init_graph(use_enriched: bool) -> str:
     """
 
     builder_module = (
-        "llm_utils.graph_utils.enriched_graph"
+        "utils.llm.graph_utils.enriched_graph"
         if use_enriched
-        else "llm_utils.graph_utils.basic_graph"
+        else "utils.llm.graph_utils.basic_graph"
     )
 
     builder = __import__(builder_module, fromlist=["builder"]).builder
