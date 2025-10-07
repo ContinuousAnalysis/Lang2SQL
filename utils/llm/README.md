@@ -5,7 +5,7 @@ Lang2SQL 파이프라인에서 LLM, 검색(RAG), 그래프 워크플로우, DB �
 ### Depth 0: 최상위 유틸리티
 
 - (Moved) `engine/query_executor.py`: Lang2SQL 그래프 선택/컴파일/실행 진입점.
-- (Moved) `viz/display_chart.py`: LLM 활용 Plotly 시각화 유틸.
+- (Moved) `utils/visualization/display_chart.py`: LLM 활용 Plotly 시각화 유틸.
 - (Moved) `infra/monitoring/check_server.py`: GMS 헬스체크.
 - (Moved) `infra/db/connect_db.py`: ClickHouse 연결/실행.
 - (Moved) `infra/observability/token_usage.py`: LLM 메시지의 `usage_metadata` 합산 토큰 집계.
@@ -89,7 +89,7 @@ sql = extract_sql_from_result(res)
 ```
 
 ```python
-from viz.display_chart import DisplayChart
+from utils.visualization.display_chart import DisplayChart
 
 chart = DisplayChart(question="지난달 매출 추이", sql=sql, df_metadata=str(df.dtypes))
 code = chart.generate_plotly_code()
@@ -103,5 +103,3 @@ fig = chart.get_plotly_figure(code, df)
 - `display_chart.py` → OpenAI LLM(선택적)로 코드 생성 → Plotly 실행
 - `connect_db.py` → ClickHouse 클라이언트로 SQL 실행
 - `llm_response_parser.py` → 결과 파서
-
-

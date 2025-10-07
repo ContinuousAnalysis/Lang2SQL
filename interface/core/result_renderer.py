@@ -13,7 +13,7 @@ from langchain_core.messages import AIMessage
 from infra.observability.token_usage import TokenUtils
 from utils.databases import DatabaseFactory
 from utils.llm.llm_response_parser import LLMResponseParser
-from viz.display_chart import DisplayChart
+from utils.visualization.display_chart import DisplayChart
 
 
 def display_result(res: dict) -> None:
