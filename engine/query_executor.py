@@ -14,6 +14,8 @@ from utils.llm.graph_utils.basic_graph import builder as basic_builder
 from utils.llm.graph_utils.enriched_graph import builder as enriched_builder
 from utils.llm.llm_response_parser import LLMResponseParser
 
+import streamlit as st
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,7 +26,7 @@ def execute_query(
     retriever_name: str = "기본",
     top_n: int = 5,
     device: str = "cpu",
-    use_enriched_graph: bool = False,
+    use_enriched_graph: bool = st.session_state.get('graph_config', {}).get('preset') not in (None, '기본'),
     session_state: Optional[Union[Dict[str, Any], Any]] = None,
 ) -> Dict[str, Any]:
     """
@@ -49,7 +51,6 @@ def execute_query(
             - "messages": 전체 LLM 응답 메시지 목록
             - "searched_tables": 참조된 테이블 목록 등 추가 정보
     """
-
     logger.info("Processing query: %s", query)
 
     # 그래프 선택
@@ -72,6 +73,7 @@ def execute_query(
     else:
         # CLI 환경: 매번 새로운 그래프 컴파일
         graph = graph_builder.compile()
+
 
     # 그래프 실행
     res = graph.invoke(
