@@ -3,7 +3,6 @@ LangGraph ChatBot에서 사용하는 도구(Tool) 함수들
 """
 
 from langchain_core.tools import tool
-from utils.llm.retrieval import search_tables
 from utils.data.datahub_services.base_client import DataHubBaseClient
 from utils.data.datahub_services.glossary_service import GlossaryService
 from utils.data.datahub_services.query_service import QueryService
@@ -59,6 +58,8 @@ def search_database_tables(
         - "사용 가능한 컬럼을 보여줘"
         - SQL 쿼리를 생성하기 전에 스키마 정보가 필요할 때
     """
+    from utils.llm.retrieval import search_tables
+
     return search_tables(
         query=query, retriever_name=retriever_name, top_n=top_n, device=device
     )
