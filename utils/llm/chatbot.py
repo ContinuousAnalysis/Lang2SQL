@@ -4,11 +4,16 @@ OpenAI의 ChatGPT 모델을 사용하여 대화 기록을 유지하는 챗봇 �
 """
 
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
-from utils.llm.tools import get_weather, get_famous_opensource
+from utils.llm.tools import (
+    get_weather,
+    get_famous_opensource,
+    search_database_tables,
+)
 
 
 class ChatBot:
@@ -36,7 +41,12 @@ class ChatBot:
         """
         self.openai_api_key = openai_api_key
         self.model_name = model_name
-        self.tools = [get_weather, get_famous_opensource]  # 사용 가능한 tool 목록
+        # SQL 생성을 위한 데이터베이스 메타데이터 조회 도구
+        self.tools = [
+            search_database_tables,  # 데이터베이스 테이블 정보 검색
+            get_weather,  # 테스트용 도구 (추후 제거 가능)
+            get_famous_opensource,  # 테스트용 도구 (추후 제거 가능)
+        ]
         self.llm = self._setup_llm()  # LLM 인스턴스 설정
         self.app = self._setup_workflow()  # LangGraph 워크플로우 설정
 
@@ -49,7 +59,7 @@ class ChatBot:
             ChatOpenAI: Tool이 바인딩된 LLM 인스턴스
         """
         llm = ChatOpenAI(
-            temperature=0.1,  # 응답의 일관성을 위해 낮은 temperature 설정
+            temperature=0.0,  # SQL 생성은 정확성이 중요하므로 0으로 설정
             openai_api_key=self.openai_api_key,
             model_name=self.model_name,
         )
@@ -79,8 +89,33 @@ class ChatBot:
             Returns:
                 dict: LLM 응답이 포함된 상태 업데이트
             """
-            # sys_msg = SystemMessage(content="You are a helpful assistant ")
-            response = self.llm.invoke(state["messages"])
+            # SQL 생성 전문 어시스턴트 시스템 메시지
+            sys_msg = SystemMessage(
+                content="""# 역할
+당신은 사용자가 SQL 쿼리를 생성하도록 돕는 전문 AI 어시스턴트입니다.
+
+# 주요 임무
+- 사용자의 자연어 질문을 이해하고 SQL 쿼리 생성에 필요한 정보를 파악합니다
+- 필요한 경우 데이터베이스 스키마나 메타데이터를 확인하기 위해 도구를 활용합니다
+- 단계별로 사용자와 대화하며 명확한 SQL 쿼리를 만들어갑니다
+- 생성된 SQL에 대해 이해하기 쉽게 설명합니다
+
+# 작업 프로세스
+1. 사용자의 의도를 명확히 파악
+2. 필요한 테이블/컬럼 정보 확인 (도구 사용)
+3. 사용자의 질문을 바탕으로 정보를 추출할 수 있는 명확한 질문으로 변환합니다
+
+# 주의사항
+- 항상 친절하고 명확하게 대화합니다
+- 이전 대화 맥락을 고려하여 일관성 있게 응답합니다
+- 사용자가 SQL을 이해할 수 있도록 단계별로 설명합니다
+
+---
+다음은 사용자와의 대화입니다:"""
+            )
+            # 시스템 메시지를 대화의 맨 앞에 추가
+            messages = [sys_msg] + state["messages"]
+            response = self.llm.invoke(messages)
             return {"messages": response}
 
         def route_model_output(state: MessagesState):
