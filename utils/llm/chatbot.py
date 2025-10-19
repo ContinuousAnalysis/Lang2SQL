@@ -38,14 +38,6 @@ class ChatBot:
     MemorySaver를 통해 대화 기록을 관리합니다.
     """
 
-    # 사용 가능한 OpenAI 모델 목록 (키: 모델ID, 값: 표시명)
-    AVAILABLE_MODELS = {
-        "gpt-4o": "GPT-4o",
-        "gpt-4o-mini": "GPT-4o Mini",
-        "gpt-4-turbo": "GPT-4 Turbo",
-        "gpt-3.5-turbo": "GPT-3.5 Turbo",
-    }
-
     def __init__(
         self,
         openai_api_key: str,
