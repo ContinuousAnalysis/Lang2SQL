@@ -54,20 +54,25 @@ def initialize_session_state():
         or "gpt-4o-mini"
     )
 
+    # DataHub 서버 URL 가져오기 (config에서 로드)
+    config = load_config()
+    gms_server = config.datahub_server
+
     # ChatBot 인스턴스 생성 또는 모델 업데이트
     if "chatbot_instance" not in st.session_state:
         st.session_state.chatbot_instance = ChatBot(
-            openai_api_key, model_name=model_name
+            openai_api_key, model_name=model_name, gms_server=gms_server
         )
     else:
-        # 기존 인스턴스가 있는 경우, 모델이나 API 키가 변경되었는지 확인
+        # 기존 인스턴스가 있는 경우, 모델이나 API 키, gms_server가 변경되었는지 확인
         existing_bot = st.session_state.chatbot_instance
         if (
             existing_bot.model_name != model_name
             or existing_bot.openai_api_key != openai_api_key
+            or existing_bot.gms_server != gms_server
         ):
             st.session_state.chatbot_instance = ChatBot(
-                openai_api_key, model_name=model_name
+                openai_api_key, model_name=model_name, gms_server=gms_server
             )
 
 

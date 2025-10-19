@@ -8,6 +8,7 @@ from utils.llm.tools.chatbot_tool import (
     get_weather,
     get_famous_opensource,
     search_database_tables,
+    get_glossary_terms,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "get_weather",
     "get_famous_opensource",
     "search_database_tables",
+    "get_glossary_terms",
 ]

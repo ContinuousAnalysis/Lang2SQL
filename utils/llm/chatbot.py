@@ -3,17 +3,33 @@ LangGraph 기반 ChatBot 모델
 OpenAI의 ChatGPT 모델을 사용하여 대화 기록을 유지하는 챗봇 구현
 """
 
+from typing import Annotated, Sequence, TypedDict
+
+from langchain_core.messages import BaseMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import START, MessagesState, StateGraph
+from langgraph.graph import START, StateGraph
+from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from utils.llm.tools import (
     get_weather,
     get_famous_opensource,
     search_database_tables,
+    get_glossary_terms,
 )
+
+
+class ChatBotState(TypedDict):
+    """
+    챗봇 상태 - 사용자 질문을 SQL로 변환 가능한 구체적인 질문으로 만들어가는 과정 추적
+    """
+
+    # 기본 메시지 (MessagesState와 동일)
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+
+    # datahub 서버 정보
+    gms_server: str
 
 
 class ChatBot:
@@ -31,21 +47,29 @@ class ChatBot:
         "gpt-3.5-turbo": "GPT-3.5 Turbo",
     }
 
-    def __init__(self, openai_api_key: str, model_name: str = "gpt-4o-mini"):
+    def __init__(
+        self,
+        openai_api_key: str,
+        model_name: str = "gpt-4o-mini",
+        gms_server: str = "http://localhost:8080",
+    ):
         """
         ChatBot 인스턴스 초기화
 
         Args:
             openai_api_key: OpenAI API 키
             model_name: 사용할 모델명 (기본값: gpt-4o-mini)
+            gms_server: DataHub GMS 서버 URL (기본값: http://localhost:8080)
         """
         self.openai_api_key = openai_api_key
         self.model_name = model_name
+        self.gms_server = gms_server
         # SQL 생성을 위한 데이터베이스 메타데이터 조회 도구
         self.tools = [
             search_database_tables,  # 데이터베이스 테이블 정보 검색
             get_weather,  # 테스트용 도구 (추후 제거 가능)
             get_famous_opensource,  # 테스트용 도구 (추후 제거 가능)
+            get_glossary_terms,  # 용어집 조회 도구
         ]
         self.llm = self._setup_llm()  # LLM 인스턴스 설정
         self.app = self._setup_workflow()  # LangGraph 워크플로우 설정
@@ -75,10 +99,10 @@ class ChatBot:
         Returns:
             CompiledGraph: 컴파일된 LangGraph 워크플로우
         """
-        # MessagesState를 사용하는 StateGraph 생성
-        workflow = StateGraph(state_schema=MessagesState)
+        # ChatBotState를 사용하는 StateGraph 생성
+        workflow = StateGraph(state_schema=ChatBotState)
 
-        def call_model(state: MessagesState):
+        def call_model(state: ChatBotState):
             """
             LLM 모델을 호출하는 노드 함수
             LLM이 응답을 생성하거나 tool 호출을 결정합니다.
@@ -89,26 +113,38 @@ class ChatBot:
             Returns:
                 dict: LLM 응답이 포함된 상태 업데이트
             """
-            # SQL 생성 전문 어시스턴트 시스템 메시지
+            # 질문 구체화 전문 어시스턴트 시스템 메시지
             sys_msg = SystemMessage(
                 content="""# 역할
-당신은 사용자가 SQL 쿼리를 생성하도록 돕는 전문 AI 어시스턴트입니다.
+당신은 사용자의 모호한 질문을 명확하고 구체적인 질문으로 만드는 전문 AI 어시스턴트입니다.
 
 # 주요 임무
-- 사용자의 자연어 질문을 이해하고 SQL 쿼리 생성에 필요한 정보를 파악합니다
-- 필요한 경우 데이터베이스 스키마나 메타데이터를 확인하기 위해 도구를 활용합니다
-- 단계별로 사용자와 대화하며 명확한 SQL 쿼리를 만들어갑니다
-- 생성된 SQL에 대해 이해하기 쉽게 설명합니다
+- 사용자의 자연어 질문을 이해하고 의도를 정확히 파악합니다
+- 대화를 통해 날짜, 지표, 필터 조건 등 구체적인 정보를 수집합니다
+- 단계별로 사용자와 대화하며 명확하고 구체적인 질문으로 다듬어갑니다
 
 # 작업 프로세스
-1. 사용자의 의도를 명확히 파악
-2. 필요한 테이블/컬럼 정보 확인 (도구 사용)
-3. 사용자의 질문을 바탕으로 정보를 추출할 수 있는 명확한 질문으로 변환합니다
+1. 사용자의 최초 질문에서 의도 파악
+2. 질문을 명확히 하기 위해 필요한 정보 식별 (날짜, 지표, 대상, 조건 등)
+3. **도구를 적극 활용하여 데이터베이스 스키마, 테이블 정보, 용어집 등을 확인**
+4. 부족한 정보를 자연스럽게 질문하여 수집
+5. 수집된 정보를 바탕으로 질문을 점진적으로 구체화
+6. 충분히 구체화되면 최종 질문 확정
+
+# 도구 사용 가이드
+- **search_database_tables**: 사용자와의 대화를 데이터와 연관짓기 위해 관련 테이블을 적극적으로 확인
+- **get_glossary_terms**: 사용자가 사용한 용어의 정확한 의미를 확인할 때 사용
+- 도구를 사용하면 더 정확하고 구체적인 질문을 만들 수 있습니다
+- 불확실한 정보가 있다면 추측하지 말고 도구를 사용하여 확인하세요
+
+# 예시
+- 모호한 질문: "KPI가 궁금해"
+- 대화 후 구체화: "2025-01-02 날짜의 신규 유저가 발생시킨 매출이 궁금해"
 
 # 주의사항
 - 항상 친절하고 명확하게 대화합니다
 - 이전 대화 맥락을 고려하여 일관성 있게 응답합니다
-- 사용자가 SQL을 이해할 수 있도록 단계별로 설명합니다
+- 한 번에 너무 많은 것을 물어보지 않고 단계적으로 진행합니다
 
 ---
 다음은 사용자와의 대화입니다:"""
@@ -118,7 +154,7 @@ class ChatBot:
             response = self.llm.invoke(messages)
             return {"messages": response}
 
-        def route_model_output(state: MessagesState):
+        def route_model_output(state: ChatBotState):
             """
             LLM 출력에 따라 다음 노드를 결정하는 라우팅 함수
             Tool 호출이 필요한 경우 'tools' 노드로, 아니면 대화를 종료합니다.
@@ -161,10 +197,15 @@ class ChatBot:
         Returns:
             dict: LLM 응답을 포함한 결과 딕셔너리
         """
-        return self.app.invoke(
-            {"messages": [{"role": "user", "content": message}]},
-            {"configurable": {"thread_id": thread_id}},  # thread_id로 대화 기록 관리
-        )
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # 상태 준비
+        input_state = {
+            "messages": [{"role": "user", "content": message}],
+            "gms_server": self.gms_server,  # DataHub 서버 URL을 상태에 포함
+        }
+
+        return self.app.invoke(input_state, config)
 
     def update_model(self, model_name: str):
         """
