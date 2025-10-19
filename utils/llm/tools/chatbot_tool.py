@@ -6,65 +6,7 @@ from langchain_core.tools import tool
 from utils.llm.retrieval import search_tables
 from utils.data.datahub_services.base_client import DataHubBaseClient
 from utils.data.datahub_services.glossary_service import GlossaryService
-
-
-@tool
-def get_weather(city: str) -> str:
-    """
-    특정 도시의 현재 날씨 정보를 조회합니다.
-
-    이 함수는 도시 이름을 입력받아 해당 도시의 날씨 정보를 반환합니다.
-    사용자가 날씨, 기상, weather 등의 키워드와 함께 도시 이름을 언급하면 이 도구를 사용하세요.
-
-    Args:
-        city (str): 날씨를 확인하고 싶은 도시의 이름입니다.
-                   예: "Seoul", "New York", "Tokyo", "서울", "부산" 등
-                   영문과 한글 도시명을 모두 지원합니다.
-
-    Returns:
-        str: 해당 도시의 날씨 정보를 담은 문자열입니다.
-             현재는 항상 맑은 날씨를 반환합니다.
-
-    Examples:
-        >>> get_weather("Seoul")
-        'Seoul is sunny'
-
-        >>> get_weather("서울")
-        '서울 is sunny'
-
-    Note:
-        이 도구는 다음과 같은 경우에 사용하세요:
-        - "서울 날씨 어때?"
-        - "What's the weather in New York?"
-        - "도쿄의 날씨를 알려줘"
-        - "부산 날씨 확인해줘"
-    """
-    return f"{city} is sunny"
-
-
-@tool
-def get_famous_opensource() -> str:
-    """
-    가장 유명한 오픈소스 프로젝트를 조회합니다.
-
-    이 함수는 현재 가장 유명한 오픈소스 프로젝트의 이름을 반환합니다.
-    사용자가 유명한 오픈소스, 인기있는 오픈소스, 최고의 오픈소스 등을 물어보면 이 도구를 사용하세요.
-
-    Returns:
-        str: 가장 유명한 오픈소스 프로젝트 이름
-
-    Examples:
-        >>> get_famous_opensource()
-        'Lang2SQL'
-
-    Note:
-        이 도구는 다음과 같은 경우에 사용하세요:
-        - "제일 유명한 오픈소스가 뭐야?"
-        - "가장 인기있는 오픈소스는?"
-        - "최고의 오픈소스 프로젝트 알려줘"
-        - "유명한 오픈소스 추천해줘"
-    """
-    return "Lang2SQL"
+from utils.data.datahub_services.query_service import QueryService
 
 
 @tool
@@ -253,3 +195,119 @@ def get_glossary_terms(gms_server: str = "http://35.222.65.99:8080") -> list:
         return {"error": True, "message": f"DataHub 서버 연결 실패: {str(e)}"}
     except Exception as e:
         return {"error": True, "message": f"용어집 조회 중 오류 발생: {str(e)}"}
+
+
+@tool
+def get_query_examples(
+    gms_server: str = "http://35.222.65.99:8080",
+    start: int = 0,
+    count: int = 10,
+    query: str = "*",
+) -> list:
+    """
+    DataHub에서 저장된 쿼리 예제들을 조회합니다.
+
+    이 함수는 DataHub 서버에 연결하여 저장된 SQL 쿼리 목록을 가져옵니다.
+    조직에서 실제로 사용되고 검증된 쿼리 패턴을 참고하여 더 정확한 SQL을 생성할 수 있습니다.
+
+    **중요**: 사용자의 질문이나 대화에서 다음과 같은 상황이 발생하면 반드시 이 도구를 사용하세요:
+    1. 일반적인 SQL 패턴으로 해결하기 어려운 복잡한 쿼리 요청일 때
+    2. 조직 특화된 비즈니스 로직이나 데이터 처리 방식이 필요할 때
+    3. 특정 도메인의 표준 쿼리 패턴이나 관례를 따라야 할 때
+    4. 여러 테이블 간의 복잡한 JOIN이나 집계가 필요할 때
+    5. 사용자가 과거 실행했던 쿼리와 유사한 작업을 요청할 때
+    6. 조직 내에서 검증된 쿼리 작성 방식을 확인해야 할 때
+
+    Args:
+        gms_server (str, optional): DataHub GMS 서버 URL입니다.
+                                   기본값은 "http://35.222.65.99:8080"
+        start (int, optional): 조회 시작 위치입니다. 기본값은 0
+        count (int, optional): 조회할 쿼리 개수입니다. 기본값은 10
+        query (str, optional): 검색 쿼리입니다. 기본값은 "*" (모든 쿼리)
+
+    Returns:
+        list: 쿼리 정보 리스트입니다.
+              각 항목은 name, description, statement 필드를 포함합니다.
+
+              예시 형태:
+              [
+                  {
+                      "name": "고객별 주문 수 조회",
+                      "description": "각 고객별 주문 건수를 집계하는 쿼리",
+                      "statement": "SELECT customer_id, COUNT(*) as order_count FROM orders GROUP BY customer_id"
+                  },
+                  {
+                      "name": "월별 매출 현황",
+                      "description": "월별 총 매출을 계산하는 쿼리",
+                      "statement": "SELECT DATE_TRUNC('month', order_date) as month, SUM(amount) FROM orders GROUP BY month"
+                  }
+              ]
+
+    Examples:
+        >>> get_query_examples()
+        [{'name': '고객별 주문 수 조회', 'description': '...', 'statement': 'SELECT ...'}]
+
+        >>> get_query_examples(count=5)
+        # 5개의 쿼리 예제만 조회
+
+    Note:
+        이 도구는 다음과 같은 경우에 **반드시** 사용하세요:
+
+        [명시적 요청]
+        - "쿼리 예제를 보여줘"
+        - "저장된 쿼리들을 알려줘"
+        - "과거 쿼리 내역을 보고 싶어"
+        - "SQL 예제가 있어?"
+
+        [도메인/조직 특화 패턴 감지 - 매우 중요!]
+        - 조직 특화된 데이터 처리 방식이나 계산 로직이 필요할 때
+        - 특정 도메인의 관례적인 쿼리 패턴을 따라야 할 때
+        - 데이터 품질 규칙이나 비즈니스 룰이 반영된 쿼리가 필요할 때
+        - 조직 내에서 표준화된 쿼리 작성 방식을 확인해야 할 때
+
+        [쿼리 작성 참고]
+        - "이런 유형의 쿼리는 어떻게 작성해?"
+        - "비슷한 쿼리 있어?"
+        - "다른 사람들은 어떻게 쿼리를 작성했어?"
+        - "참고할만한 쿼리가 있을까?"
+        - "이 테이블들을 어떻게 조인해야 해?"
+
+        **핵심**: SQL 쿼리를 생성하기 전에 사용자의 요청이 복잡하거나,
+        조직 특화된 비즈니스 로직이 필요하거나, 일반적인 패턴으로 커버하기
+        어렵다고 판단되면, 먼저 이 도구를 호출하여 조직에서 검증된
+        쿼리 예제를 참고하세요. 이는 더 정확하고 조직의 표준을 따르는
+        SQL을 생성하는 데 큰 도움이 됩니다.
+    """
+    try:
+        # DataHub 클라이언트 초기화
+        client = DataHubBaseClient(gms_server=gms_server)
+
+        # QueryService 초기화
+        query_service = QueryService(client)
+
+        # 쿼리 데이터 가져오기
+        result = query_service.get_query_data(start=start, count=count, query=query)
+
+        # 오류 체크
+        if "error" in result and result["error"]:
+            return {"error": True, "message": result.get("message")}
+
+        # name, description, statement만 추출하여 리스트 생성
+        simplified_queries = []
+        for query_item in result.get("queries", []):
+            simplified_query = {
+                "name": query_item.get("name"),
+                "description": query_item.get("description", ""),
+                "statement": query_item.get("statement", ""),
+            }
+            simplified_queries.append(simplified_query)
+
+        return simplified_queries
+
+    except ValueError as e:
+        return {"error": True, "message": f"DataHub 서버 연결 실패: {str(e)}"}
+    except Exception as e:
+        return {
+            "error": True,
+            "message": f"쿼리 예제 조회 중 오류 발생: {str(e)}",
+        }

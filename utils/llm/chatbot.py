@@ -13,10 +13,9 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from utils.llm.tools import (
-    get_weather,
-    get_famous_opensource,
     search_database_tables,
     get_glossary_terms,
+    get_query_examples,
 )
 
 
@@ -67,9 +66,8 @@ class ChatBot:
         # SQL 생성을 위한 데이터베이스 메타데이터 조회 도구
         self.tools = [
             search_database_tables,  # 데이터베이스 테이블 정보 검색
-            get_weather,  # 테스트용 도구 (추후 제거 가능)
-            get_famous_opensource,  # 테스트용 도구 (추후 제거 가능)
             get_glossary_terms,  # 용어집 조회 도구
+            get_query_examples,  # 쿼리 예제 조회 도구
         ]
         self.llm = self._setup_llm()  # LLM 인스턴스 설정
         self.app = self._setup_workflow()  # LangGraph 워크플로우 설정
@@ -132,9 +130,10 @@ class ChatBot:
 6. 충분히 구체화되면 최종 질문 확정
 
 # 도구 사용 가이드
-- **search_database_tables**: 사용자와의 대화를 데이터와 연관짓기 위해 관련 테이블을 적극적으로 확인
-- **get_glossary_terms**: 사용자가 사용한 용어의 정확한 의미를 확인할 때 사용
-- 도구를 사용하면 더 정확하고 구체적인 질문을 만들 수 있습니다
+- **search_database_tables**: 사용자와의 대화를 데이터와 연관짓기 위해 관련 테이블을 적극적으로 확인할 수 있는 도구
+- **get_glossary_terms**: 사용자가 사용한 용어의 정확한 의미를 확인할 때 사용가능한 도구
+- **get_query_examples**: 조직내 저장된 쿼리 예제를 조회하여 참고할 수 있는 도구
+- 답변하기 전에 최대한 많은 도구를 적극 활용하여 정보를 수집하세요
 - 불확실한 정보가 있다면 추측하지 말고 도구를 사용하여 확인하세요
 
 # 예시
@@ -145,6 +144,9 @@ class ChatBot:
 - 항상 친절하고 명확하게 대화합니다
 - 이전 대화 맥락을 고려하여 일관성 있게 응답합니다
 - 한 번에 너무 많은 것을 물어보지 않고 단계적으로 진행합니다
+- **중요: 사용자가 말한 내용이 충분히 구체화되지 않거나 의도가 명확히 파악되지 않을 경우, 추측하지 말고 모든 도구(get_glossary_terms, get_query_examples, search_database_tables)를 적극적으로 사용하여 맥락을 파악하세요**
+- 도구를 통해 수집한 정보를 바탕으로 사용자에게 구체적인 방향성과 옵션을 제안하세요
+- 불확실한 정보가 있다면 추측하지 말고 도구를 사용하여 확인한 후 답변하세요
 
 ---
 다음은 사용자와의 대화입니다:"""

@@ -5,18 +5,16 @@ from utils.llm.tools.datahub import (
 )
 
 from utils.llm.tools.chatbot_tool import (
-    get_weather,
-    get_famous_opensource,
     search_database_tables,
     get_glossary_terms,
+    get_query_examples,
 )
 
 __all__ = [
     "set_gms_server",
     "get_info_from_db",
     "get_metadata_from_db",
-    "get_weather",
-    "get_famous_opensource",
     "search_database_tables",
     "get_glossary_terms",
+    "get_query_examples",
 ]
