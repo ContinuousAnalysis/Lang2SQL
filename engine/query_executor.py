@@ -72,7 +72,6 @@ def execute_query(
         # CLI 환경: 매번 새로운 그래프 컴파일
         graph = graph_builder.compile()
 
-
     # 그래프 실행
     res = graph.invoke(
         input={
