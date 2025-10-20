@@ -14,8 +14,6 @@ from utils.llm.graph_utils.basic_graph import builder as basic_builder
 from utils.llm.graph_utils.enriched_graph import builder as enriched_builder
 from utils.llm.llm_response_parser import LLMResponseParser
 
-import streamlit as st
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +24,7 @@ def execute_query(
     retriever_name: str = "기본",
     top_n: int = 5,
     device: str = "cpu",
-    use_enriched_graph: bool = st.session_state.get('graph_config', {}).get('preset') not in (None, '기본'),
+    use_enriched_graph: bool = False,
     session_state: Optional[Union[Dict[str, Any], Any]] = None,
 ) -> Dict[str, Any]:
     """
