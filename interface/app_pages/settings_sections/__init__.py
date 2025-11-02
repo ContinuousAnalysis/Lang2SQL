@@ -4,6 +4,4 @@ __all__ = [
     "data_source_section",
     "llm_section",
     "db_section",
-    "vectordb_section",
-    "device_section",
 ]

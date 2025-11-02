@@ -96,13 +96,15 @@ Streamlit 웹 인터페이스 실행:
 lang2sql run-streamlit
 ```
 
-사용자 정의 포트 및 DataHub 서버와 함께:
+사용자 정의 포트로 실행:
 
 ```bash
-lang2sql --datahub_server http://your-datahub-server:8080 run-streamlit -p 8888
+lang2sql run-streamlit -p 8888
 ```
 
-참고: Streamlit 서버는 `0.0.0.0` 으로 바인딩되어 외부에서 접속 가능합니다.
+**참고**: 
+- Streamlit 서버는 `0.0.0.0` 으로 바인딩되어 외부에서 접속 가능합니다.
+- `--datahub_server` 옵션은 더 이상 사용되지 않습니다(deprecated). DataHub 설정은 UI의 설정 > 데이터 소스 탭에서 관리하세요.
 
 ### Graph Builder 페이지
 
@@ -116,21 +118,23 @@ Streamlit 앱은 멀티 페이지 구조입니다. 좌측 네비게이션에서 
 
 ### VectorDB 선택
 
-FAISS(로컬) 또는 pgvector(PostgreSQL) 중 선택:
+**참고**: CLI 레벨의 `--vectordb-type` 및 `--vectordb-location` 옵션은 더 이상 사용되지 않습니다(deprecated). Streamlit 실행 시 VectorDB 설정은 UI의 설정 > 데이터 소스 탭에서 관리하세요.
+
+`query` 명령어에서는 VectorDB 옵션을 사용할 수 있습니다:
 
 ```bash
 # FAISS 사용 (기본값)
-lang2sql --vectordb-type faiss run-streamlit
+lang2sql query "질문" --vectordb-type faiss
 
 # pgvector 사용
-lang2sql --vectordb-type pgvector run-streamlit
+lang2sql query "질문" --vectordb-type pgvector
 
 # 위치 지정 예시
 # FAISS: 인덱스 디렉토리 경로 지정
-lang2sql --vectordb-type faiss --vectordb-location ./dev/table_info_db run-streamlit
+lang2sql query "질문" --vectordb-type faiss --vectordb-location ./dev/table_info_db
 
 # pgvector: 연결 문자열 지정
-lang2sql --vectordb-type pgvector --vectordb-location "postgresql://user:pass@host:5432/db" run-streamlit
+lang2sql query "질문" --vectordb-type pgvector --vectordb-location "postgresql://user:pass@host:5432/db"
 ```
 
 참고: DataHub 없이도 미리 준비된 VectorDB(FAISS 디렉토리 혹은 pgvector 컬렉션)를 바로 사용할 수 있습니다. 자세한 준비 방법은 [DataHub 없이 시작하기](docs/tutorials/getting-started-without-datahub.md)를 참고하세요.
@@ -144,12 +148,33 @@ lang2sql --vectordb-type pgvector --vectordb-location "postgresql://user:pass@ho
 ### 자연어 쿼리 실행
 
 ```bash
-# 기본 FAISS 사용
+# 기본 사용 (FAISS, clickhouse, 기본 검색기)
 lang2sql query "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리"
 
-# pgvector 사용
-lang2sql query "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리" --vectordb-type pgvector --vectordb-location "postgresql://postgres:postgres@localhost:5432/postgres"
+# 옵션 사용 예시
+lang2sql query "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리" \
+  --database-env clickhouse \
+  --retriever-name 기본 \
+  --top-n 5 \
+  --device cpu \
+  --use-enriched-graph \
+  --vectordb-type faiss \
+  --vectordb-location ./dev/table_info_db
+
+# pgvector 사용 예시
+lang2sql query "고객 데이터를 기반으로 유니크한 유저 수를 카운트하는 쿼리" \
+  --vectordb-type pgvector \
+  --vectordb-location "postgresql://postgres:postgres@localhost:5432/postgres"
 ```
+
+**주요 옵션 설명:**
+- `--database-env`: 사용할 데이터베이스 환경 (기본값: clickhouse)
+- `--retriever-name`: 테이블 검색기 이름 (기본값: 기본)
+- `--top-n`: 검색된 상위 테이블 수 제한 (기본값: 5)
+- `--device`: LLM 실행에 사용할 디바이스 (기본값: cpu)
+- `--use-enriched-graph`: 확장된 그래프(프로파일 추출 + 컨텍스트 보강) 사용 여부
+- `--vectordb-type`: 벡터 데이터베이스 타입 ("faiss" 또는 "pgvector", 기본값: faiss)
+- `--vectordb-location`: VectorDB 위치 (FAISS: 디렉토리 경로, pgvector: 연결 문자열)
 
 ### 환경 설정
 
@@ -157,7 +182,7 @@ lang2sql query "고객 데이터를 기반으로 유니크한 유저 수를 카�
 - 또는 CLI 옵션으로 환경을 지정할 수 있습니다:
   - `--env-file-path`: 환경 변수 파일 경로 지정
   - `--prompt-dir-path`: 프롬프트 템플릿(.md) 디렉토리 지정
-  - `--datahub_server`: DataHub GMS 서버 URL 지정
+  - `--datahub_server`: [Deprecated] DataHub GMS 서버 URL 지정. 이제는 UI의 설정 > 데이터 소스 탭에서 관리하세요.
 
 ## 🏗️ 아키텍처
 
