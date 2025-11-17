@@ -13,8 +13,8 @@ from pydantic import BaseModel, Field
 
 from prompt.template_loader import get_prompt_template
 from utils.llm.core import get_llm
-from utils.llm.output_parser.document_suitability import DocumentSuitabilityList
-from utils.llm.output_parser.question_suitability import QuestionSuitability
+from utils.llm.output_schema.document_suitability import DocumentSuitabilityList
+from utils.llm.output_schema.question_suitability import QuestionSuitability
 
 llm = get_llm()
 
