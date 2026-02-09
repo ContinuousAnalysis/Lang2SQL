@@ -18,4 +18,4 @@ MAJOR.MINOR.PATCH
 - PATCH는 1로 증가합니다.
 """
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
