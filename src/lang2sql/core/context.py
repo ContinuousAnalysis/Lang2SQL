@@ -104,6 +104,8 @@ class RunContext:
         if not isinstance(value, str):
             raise TypeError(f"RunContext.sql must be str, got {type(value).__name__}")
         self.outputs["sql"] = value
+        
+        # sql changes invalidate validation (validation is derived from sql)
         self.outputs.pop("validation", None)
 
     @property
