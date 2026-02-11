@@ -3,19 +3,22 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from .hooks import TraceHook, NullHook, Event, now, ms, summarize
 from .exceptions import ComponentError, Lang2SQLError
+from .hooks import Event, NullHook, TraceHook, ms, now, summarize
 
 
 class BaseComponent(ABC):
     """
-    All components are callables.
-    - No global state schema enforced.
-    - Hooks provide observability without building a graph engine.
+    Base class for all components.
+
+    Design goals:
+    - Components are plain callables (define-by-run friendly).
+    - No enforced global state schema.
+    - Hooks provide observability without requiring a graph engine.
     """
 
     def __init__(self, name: Optional[str] = None, hook: Optional[TraceHook] = None) -> None:
-        self.name = name or self.__class__.__name__
+        self.name: str = name or self.__class__.__name__
         self.hook: TraceHook = hook or NullHook()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -46,7 +49,7 @@ class BaseComponent(ABC):
             return out
 
         except Lang2SQLError as e:
-            # Preserve domain-level errors (IntegrationMissingError, ValidationError, etc.)
+            # Preserve domain errors (do not wrap).
             t1 = now()
             self.hook.on_event(
                 Event(
@@ -61,7 +64,7 @@ class BaseComponent(ABC):
             raise
 
         except Exception as e:
-            # Wrap unexpected errors for consistent UX
+            # Wrap non-domain errors into ComponentError.
             t1 = now()
             self.hook.on_event(
                 Event(
@@ -73,7 +76,11 @@ class BaseComponent(ABC):
                     error=f"{type(e).__name__}: {e}",
                 )
             )
-            raise ComponentError(self.name, f"{type(e).__name__}: {e}", cause=e) from e
+            raise ComponentError(
+                self.name,
+                f"component failed ({type(e).__name__}: {e})",
+                cause=e,
+            ) from e
 
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
@@ -82,13 +89,15 @@ class BaseComponent(ABC):
 
 class BaseFlow(ABC):
     """
+    Base class for flows.
+
     Define-by-run:
-    - Users control control-flow (if/while/for) directly in Python.
+    - Users write control-flow in pure Python (if/for/while/retry).
     - We provide parts + presets, not a graph engine.
     """
 
     def __init__(self, name: Optional[str] = None, hook: Optional[TraceHook] = None) -> None:
-        self.name = name or self.__class__.__name__
+        self.name: str = name or self.__class__.__name__
         self.hook: TraceHook = hook or NullHook()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
@@ -99,12 +108,17 @@ class BaseFlow(ABC):
             out = self.run(*args, **kwargs)
             t1 = now()
             self.hook.on_event(
-                Event(name="flow.run", component=self.name, phase="end", ts=t1, duration_ms=ms(t0, t1))
+                Event(
+                    name="flow.run",
+                    component=self.name,
+                    phase="end",
+                    ts=t1,
+                    duration_ms=ms(t0, t1),
+                )
             )
             return out
 
         except Lang2SQLError as e:
-            # Preserve domain-level errors
             t1 = now()
             self.hook.on_event(
                 Event(
