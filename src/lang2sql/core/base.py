@@ -49,7 +49,7 @@ class BaseComponent(ABC):
             return out
 
         except Lang2SQLError as e:
-            # Preserve domain errors (do not wrap).
+            # Preserve domain-level errors (IntegrationMissingError, ValidationError, etc.).
             t1 = now()
             self.hook.on_event(
                 Event(
@@ -92,7 +92,7 @@ class BaseFlow(ABC):
     Base class for flows.
 
     Define-by-run:
-    - Users write control-flow in pure Python (if/for/while/retry).
+    - Users write control-flow in pure Python (if/for/while).
     - We provide parts + presets, not a graph engine.
     """
 
