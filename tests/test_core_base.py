@@ -6,6 +6,7 @@ from lang2sql.core.exceptions import (
     ComponentError,
     ValidationError,
     IntegrationMissingError,
+    ContractError,
 )
 
 
@@ -17,13 +18,16 @@ class AddOne(BaseComponent):
     def run(self, x: int) -> int:
         return x + 1
 
+
 class BoomValueError(BaseComponent):
     def run(self, x: int) -> int:
         raise ValueError("boom")
 
+
 class BoomDomainError(BaseComponent):
     def run(self, x: int) -> int:
         raise ValidationError("bad sql")
+
 
 class BoomIntegrationMissing(BaseComponent):
     def run(self, x: int) -> int:
@@ -34,9 +38,11 @@ class FlowOk(BaseFlow):
     def run(self, x: int) -> int:
         return x * 2
 
+
 class FlowBoomDomain(BaseFlow):
     def run(self, x: int) -> int:
         raise ValidationError("flow bad")
+
 
 class FlowBoomUnknown(BaseFlow):
     def run(self, x: int) -> int:
@@ -116,6 +122,51 @@ def test_base_component_preserves_domain_error_integration_missing():
     assert hook.events[1].phase == "error"
     assert "IntegrationMissingError" in (hook.events[1].error or "")
     assert "faiss" in (hook.events[1].error or "")
+
+
+def test_runcontext_contract_none_return_raises_contract_error():
+    from lang2sql.core.context import RunContext
+
+    class BadNone(BaseComponent):
+        def run(self, run: RunContext):
+            run.metadata["x"] = 1
+            return None  # forgot return run
+
+    hook = MemoryHook()
+    c = BadNone(hook=hook)
+
+    with pytest.raises(ContractError) as ei:
+        c(RunContext(query="q"))
+
+    assert "must return RunContext" in str(ei.value)
+    assert "None" in str(ei.value)
+
+    assert len(hook.events) == 2
+    assert hook.events[0].phase == "start"
+    assert hook.events[1].phase == "error"
+    assert "ContractError" in (hook.events[1].error or "")
+
+
+def test_runcontext_contract_wrong_type_return_raises_contract_error():
+    from lang2sql.core.context import RunContext
+
+    class BadType(BaseComponent):
+        def run(self, run: RunContext):
+            return 123  # wrong
+
+    hook = MemoryHook()
+    c = BadType(hook=hook)
+
+    with pytest.raises(ContractError) as ei:
+        c(RunContext(query="q"))
+
+    assert "must return RunContext" in str(ei.value)
+    assert "int" in str(ei.value)
+
+    assert len(hook.events) == 2
+    assert hook.events[0].phase == "start"
+    assert hook.events[1].phase == "error"
+    assert "ContractError" in (hook.events[1].error or "")
 
 
 # -------------------------
