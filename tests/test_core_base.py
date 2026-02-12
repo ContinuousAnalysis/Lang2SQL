@@ -14,6 +14,7 @@ from lang2sql.core.exceptions import (
 # Fixtures: tiny components/flows
 # -------------------------
 
+
 class AddOne(BaseComponent):
     def run(self, x: int) -> int:
         return x + 1
@@ -52,6 +53,7 @@ class FlowBoomUnknown(BaseFlow):
 # -------------------------
 # BaseComponent tests
 # -------------------------
+
 
 def test_base_component_emits_start_end_events():
     hook = MemoryHook()
@@ -172,6 +174,7 @@ def test_runcontext_contract_wrong_type_return_raises_contract_error():
 # -------------------------
 # BaseFlow tests
 # -------------------------
+
 
 def test_base_flow_emits_start_end_events():
     hook = MemoryHook()

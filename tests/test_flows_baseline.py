@@ -108,6 +108,7 @@ def test_user_can_override_pipeline_by_composing_flows_without_private_api():
 # 1) Advanced: retry patterns (NO private API)
 # -------------------------
 
+
 def test_custom_flow_fallback_then_revalidate_makes_validation_ok():
     def gen_bad(run: RunContext) -> RunContext:
         run.sql = "DROP TABLE users;"
@@ -178,6 +179,7 @@ def test_custom_flow_retry_regenerates_sql_until_valid():
 # 2) Composition: flow as a step (subflow)
 # -------------------------
 
+
 def test_subflow_can_be_used_as_a_step_and_mutates_same_context():
     def a1(run: RunContext) -> RunContext:
         run.push_meta("trace", "a1")
@@ -241,6 +243,7 @@ def test_subflow_can_be_conditionally_invoked_in_custom_flow():
     out2 = ConditionalFlow().run(RunContext(query="please use_a"))
     assert out2.get_meta_list("trace") == ["b1", "a1", "a2", "b2"]
 
+
 def test_none_return_raises_contract_error():
     def bad_none(run: RunContext):
         run.sql = "SELECT 1;"
@@ -251,6 +254,3 @@ def test_none_return_raises_contract_error():
         flow.run(RunContext(query="q"))
 
     assert "Did you forget" in str(ei.value) or "return run" in str(ei.value)
-
-
-    

@@ -104,7 +104,7 @@ class RunContext:
         if not isinstance(value, str):
             raise TypeError(f"RunContext.sql must be str, got {type(value).__name__}")
         self.outputs["sql"] = value
-        
+
         # sql changes invalidate validation (validation is derived from sql)
         # self.outputs.pop("validation", None)
 
@@ -150,7 +150,9 @@ class RunContext:
     @schema_context.setter
     def schema_context(self, value: str) -> None:
         if not isinstance(value, str):
-            raise TypeError(f"RunContext.schema_context must be str, got {type(value).__name__}")
+            raise TypeError(
+                f"RunContext.schema_context must be str, got {type(value).__name__}"
+            )
         self.schema["context"] = value
 
     # -------------------------

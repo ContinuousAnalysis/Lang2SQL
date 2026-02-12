@@ -19,7 +19,9 @@ class BaseComponent(ABC):
     - Hooks provide observability without requiring a graph engine.
     """
 
-    def __init__(self, name: Optional[str] = None, hook: Optional[TraceHook] = None) -> None:
+    def __init__(
+        self, name: Optional[str] = None, hook: Optional[TraceHook] = None
+    ) -> None:
         self.name: str = name or self.__class__.__name__
         self.hook: TraceHook = hook or NullHook()
 
@@ -38,10 +40,16 @@ class BaseComponent(ABC):
         try:
             out = self.run(*args, **kwargs)
 
-            if args and isinstance(args[0], RunContext) and not isinstance(out, RunContext):
+            if (
+                args
+                and isinstance(args[0], RunContext)
+                and not isinstance(out, RunContext)
+            ):
                 got = "None" if out is None else type(out).__name__
-                raise ContractError(f"{self.name} must return RunContext (got {got}). Did you forget `return run`?")
-            
+                raise ContractError(
+                    f"{self.name} must return RunContext (got {got}). Did you forget `return run`?"
+                )
+
             t1 = now()
             self.hook.on_event(
                 Event(
@@ -103,13 +111,17 @@ class BaseFlow(ABC):
     - We provide parts + presets, not a graph engine.
     """
 
-    def __init__(self, name: Optional[str] = None, hook: Optional[TraceHook] = None) -> None:
+    def __init__(
+        self, name: Optional[str] = None, hook: Optional[TraceHook] = None
+    ) -> None:
         self.name: str = name or self.__class__.__name__
         self.hook: TraceHook = hook or NullHook()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         t0 = now()
-        self.hook.on_event(Event(name="flow.run", component=self.name, phase="start", ts=t0))
+        self.hook.on_event(
+            Event(name="flow.run", component=self.name, phase="start", ts=t0)
+        )
 
         try:
             out = self.run(*args, **kwargs)
@@ -156,7 +168,7 @@ class BaseFlow(ABC):
     @abstractmethod
     def run(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
-    
+
     def run_query(self, query: str) -> RunContext:
         """
         Convenience entrypoint.
@@ -173,5 +185,7 @@ class BaseFlow(ABC):
         out = self.run(RunContext(query=query))
         if not isinstance(out, RunContext):
             got = "None" if out is None else type(out).__name__
-            raise TypeError(f"{self.name}.run(run: RunContext) must return RunContext, got {got}")
+            raise TypeError(
+                f"{self.name}.run(run: RunContext) must return RunContext, got {got}"
+            )
         return out

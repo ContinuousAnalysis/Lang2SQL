@@ -8,8 +8,8 @@ import time
 
 @dataclass
 class Event:
-    name: str                 # e.g., "component.run"
-    component: str            # e.g., "KeywordTableRetriever"
+    name: str  # e.g., "component.run"
+    component: str  # e.g., "KeywordTableRetriever"
     phase: Literal["start", "end", "error"]
     ts: float
     duration_ms: Optional[float] = None
@@ -38,7 +38,7 @@ class MemoryHook:
 
     def on_event(self, event: Event) -> None:
         self.events.append(event)
-    
+
     def clear(self) -> None:
         self.events.clear()
 

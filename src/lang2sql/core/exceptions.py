@@ -1,12 +1,15 @@
 # lang2sql/core/exceptions.py
 from __future__ import annotations
 
+
 class Lang2SQLError(Exception):
     """Base error for lang2sql."""
 
 
 class IntegrationMissingError(Lang2SQLError):
-    def __init__(self, integration: str, extra: str | None = None, hint: str | None = None):
+    def __init__(
+        self, integration: str, extra: str | None = None, hint: str | None = None
+    ):
         self.integration = integration
         self.extra = extra
         self.hint = hint
@@ -29,6 +32,8 @@ class ComponentError(Lang2SQLError):
 class ValidationError(Lang2SQLError):
     pass
 
+
 class ContractError(Lang2SQLError):
     """Raised when a component violates a required call/return contract."""
+
     pass

@@ -20,6 +20,7 @@ class RunComponent(Protocol):
     Returns:
         A RunContext instance (usually the same object, mutated in-place).
     """
+
     def __call__(self, run: RunContext) -> RunContext: ...
 
 
@@ -91,7 +92,9 @@ class SequentialFlow(BaseFlow):
             f"Component must return RunContext (got {got}). Did you forget `return run`?"
         )
 
-    def _run_steps(self, run: RunContext, steps: Iterable[RunComponent] | None = None) -> RunContext:
+    def _run_steps(
+        self, run: RunContext, steps: Iterable[RunComponent] | None = None
+    ) -> RunContext:
         """
         Run an iterable of steps sequentially.
 
