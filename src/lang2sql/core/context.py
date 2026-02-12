@@ -106,7 +106,7 @@ class RunContext:
         self.outputs["sql"] = value
         
         # sql changes invalidate validation (validation is derived from sql)
-        self.outputs.pop("validation", None)
+        # self.outputs.pop("validation", None)
 
     @property
     def validation(self) -> Any:
