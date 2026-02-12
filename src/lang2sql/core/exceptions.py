@@ -28,3 +28,7 @@ class ComponentError(Lang2SQLError):
 
 class ValidationError(Lang2SQLError):
     pass
+
+class ContractError(Lang2SQLError):
+    """Raised when a component violates a required call/return contract."""
+    pass
