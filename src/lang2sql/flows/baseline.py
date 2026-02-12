@@ -129,7 +129,7 @@ class SequentialFlow(BaseFlow):
         Returns:
             A RunContext initialized with `query` and processed by the flow.
         """
-        return self.run(RunContext(query=query))
+        return super().run_query(query)
 
 
 # Backward-compatible alias (optional).
