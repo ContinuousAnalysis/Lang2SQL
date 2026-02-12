@@ -38,6 +38,12 @@ class MemoryHook:
 
     def on_event(self, event: Event) -> None:
         self.events.append(event)
+    
+    def clear(self) -> None:
+        self.events.clear()
+
+    def snapshot(self) -> list[Event]:
+        return list(self.events)
 
 
 def now() -> float:
