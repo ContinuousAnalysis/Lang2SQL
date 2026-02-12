@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
+from .exceptions import ContractError
+from .context import RunContext
 from .exceptions import ComponentError, Lang2SQLError
 from .hooks import Event, NullHook, TraceHook, ms, now, summarize
 
@@ -35,6 +37,11 @@ class BaseComponent(ABC):
 
         try:
             out = self.run(*args, **kwargs)
+
+            if args and isinstance(args[0], RunContext) and not isinstance(out, RunContext):
+                got = "None" if out is None else type(out).__name__
+                raise ContractError(f"{self.name} must return RunContext (got {got}). Did you forget `return run`?")
+            
             t1 = now()
             self.hook.on_event(
                 Event(
