@@ -49,7 +49,9 @@ class KeywordRetriever(BaseComponent):
         super().__init__(name=name or "KeywordRetriever", hook=hook)
         self._catalog = catalog
         self._top_n = top_n
-        self._index_fields = index_fields if index_fields is not None else _DEFAULT_INDEX_FIELDS
+        self._index_fields = (
+            index_fields if index_fields is not None else _DEFAULT_INDEX_FIELDS
+        )
         self._index = _BM25Index(catalog, self._index_fields)
 
     def run(self, run: RunContext) -> RunContext:
@@ -77,11 +79,7 @@ class KeywordRetriever(BaseComponent):
         )
 
         # Return up to top_n entries that have a positive score
-        results = [
-            entry
-            for score, entry in ranked[: self._top_n]
-            if score > 0.0
-        ]
+        results = [entry for score, entry in ranked[: self._top_n] if score > 0.0]
 
         run.schema_selected = results
         return run

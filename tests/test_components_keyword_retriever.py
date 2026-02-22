@@ -4,13 +4,13 @@ Tests for KeywordRetriever — 14 cases.
 Pattern follows test_core_base.py:
 - pytest, inline fixtures, MemoryHook
 """
+
 import pytest
 
 from lang2sql.components.retrieval import KeywordRetriever
 from lang2sql.core.context import RunContext
 from lang2sql.core.hooks import MemoryHook
 from lang2sql.flows.baseline import SequentialFlow
-
 
 # -------------------------
 # Shared test catalog
@@ -200,7 +200,12 @@ def test_missing_optional_fields_no_error():
     """columns/meta 없는 entry가 있어도 crash 없음."""
     catalog = [
         {"name": "minimal", "description": "최소 필드만 있는 테이블"},
-        {"name": "full", "description": "전체 필드", "columns": {"id": "ID"}, "meta": {}},
+        {
+            "name": "full",
+            "description": "전체 필드",
+            "columns": {"id": "ID"},
+            "meta": {},
+        },
     ]
 
     retriever = KeywordRetriever(catalog=catalog)

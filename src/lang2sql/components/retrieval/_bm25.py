@@ -7,6 +7,7 @@ BM25 parameters:
 
 Tokenization: text.lower().split()  (whitespace, no external deps)
 """
+
 from __future__ import annotations
 
 import math
