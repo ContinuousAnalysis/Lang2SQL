@@ -62,6 +62,7 @@ path = "version.py"
 include = [
   "version.py",
   "prompt/*.md",
+  "src/lang2sql/**",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -72,6 +73,7 @@ packages = [
   "infra",
   "prompt",
   "utils",
+  "src/lang2sql"
 ]
 
 [tool.uv]
