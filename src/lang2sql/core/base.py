@@ -3,8 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from .exceptions import ContractError
-from .context import RunContext
 from .exceptions import ComponentError, Lang2SQLError
 from .hooks import Event, NullHook, TraceHook, ms, now, summarize
 
@@ -17,6 +15,10 @@ class BaseComponent(ABC):
     - Components are plain callables (define-by-run friendly).
     - No enforced global state schema.
     - Hooks provide observability without requiring a graph engine.
+
+    Public entry point is ``run()``.  ``__call__`` is a convenience alias so
+    components can be used as plain callables (e.g. in SequentialFlow steps).
+    Subclasses implement ``_run()``.
     """
 
     def __init__(
@@ -26,6 +28,9 @@ class BaseComponent(ABC):
         self.hook: TraceHook = hook or NullHook()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.run(*args, **kwargs)
+
+    def run(self, *args: Any, **kwargs: Any) -> Any:
         t0 = now()
         self.hook.on_event(
             Event(
@@ -38,17 +43,7 @@ class BaseComponent(ABC):
         )
 
         try:
-            out = self.run(*args, **kwargs)
-
-            if (
-                args
-                and isinstance(args[0], RunContext)
-                and not isinstance(out, RunContext)
-            ):
-                got = "None" if out is None else type(out).__name__
-                raise ContractError(
-                    f"{self.name} must return RunContext (got {got}). Did you forget `return run`?"
-                )
+            out = self._run(*args, **kwargs)
 
             t1 = now()
             self.hook.on_event(
@@ -98,7 +93,7 @@ class BaseComponent(ABC):
             ) from e
 
     @abstractmethod
-    def run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
 
@@ -109,6 +104,9 @@ class BaseFlow(ABC):
     Define-by-run:
     - Users write control-flow in pure Python (if/for/while).
     - We provide parts + presets, not a graph engine.
+
+    Public entry point is ``run()``.  ``__call__`` is a convenience alias.
+    Subclasses implement ``_run()``.
     """
 
     def __init__(
@@ -118,13 +116,16 @@ class BaseFlow(ABC):
         self.hook: TraceHook = hook or NullHook()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.run(*args, **kwargs)
+
+    def run(self, *args: Any, **kwargs: Any) -> Any:
         t0 = now()
         self.hook.on_event(
             Event(name="flow.run", component=self.name, phase="start", ts=t0)
         )
 
         try:
-            out = self.run(*args, **kwargs)
+            out = self._run(*args, **kwargs)
             t1 = now()
             self.hook.on_event(
                 Event(
@@ -166,26 +167,5 @@ class BaseFlow(ABC):
             raise
 
     @abstractmethod
-    def run(self, *args: Any, **kwargs: Any) -> Any:
+    def _run(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
-
-    def run_query(self, query: str) -> RunContext:
-        """
-        Convenience entrypoint.
-
-        Creates a RunContext(query=...) and runs the flow.
-        Intended for demos / quickstart.
-
-        Args:
-            query: Natural language question.
-
-        Returns:
-            RunContext after running this flow.
-        """
-        out = self.run(RunContext(query=query))
-        if not isinstance(out, RunContext):
-            got = "None" if out is None else type(out).__name__
-            raise TypeError(
-                f"{self.name}.run(run: RunContext) must return RunContext, got {got}"
-            )
-        return out
