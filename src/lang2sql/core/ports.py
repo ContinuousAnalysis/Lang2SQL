@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
+
+from .catalog import TextDocument
 
 
 class LLMPort(Protocol):
@@ -48,3 +50,10 @@ class VectorStorePort(Protocol):
             vectors: Corresponding embedding vectors (len(ids) == len(vectors)).
         """
         ...
+
+
+@runtime_checkable
+class DocumentLoaderPort(Protocol):
+    """Converts a file path or directory to list[TextDocument]."""
+
+    def load(self, path: str) -> list[TextDocument]: ...
