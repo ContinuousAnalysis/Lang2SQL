@@ -6,6 +6,7 @@ from ..components.execution.sql_executor import SQLExecutor
 from ..components.generation.sql_generator import SQLGenerator
 from ..components.retrieval.keyword import KeywordRetriever
 from ..core.base import BaseFlow
+from ..core.catalog import RetrievalResult
 from ..core.hooks import TraceHook
 from ..core.ports import DBPort, LLMPort
 
@@ -14,7 +15,11 @@ class BaselineNL2SQL(BaseFlow):
     """
     End-to-end NL→SQL pipeline.
 
-    Pipeline: KeywordRetriever → SQLGenerator → SQLExecutor
+    Default pipeline: KeywordRetriever → SQLGenerator → SQLExecutor
+
+    A custom retriever (e.g. VectorRetriever) can be injected via the
+    ``retriever`` parameter, replacing the default KeywordRetriever.
+    Both list[CatalogEntry] and RetrievalResult return types are supported.
 
     Usage::
 
@@ -37,14 +42,25 @@ class BaselineNL2SQL(BaseFlow):
         llm: LLMPort,
         db: DBPort,
         db_dialect: Optional[str] = None,
+        retriever: Optional[Any] = None,
         hook: Optional[TraceHook] = None,
     ) -> None:
         super().__init__(name="BaselineNL2SQL", hook=hook)
-        self._retriever = KeywordRetriever(catalog=catalog, hook=hook)
+        self._retriever = retriever or KeywordRetriever(catalog=catalog, hook=hook)
         self._generator = SQLGenerator(llm=llm, db_dialect=db_dialect, hook=hook)
         self._executor = SQLExecutor(db=db, hook=hook)
 
     def _run(self, query: str) -> list[dict[str, Any]]:
-        schemas = self._retriever(query)
-        sql = self._generator(query, schemas)
+        result = self._retriever(query)
+
+        # KeywordRetriever returns list[CatalogEntry]
+        # VectorRetriever  returns RetrievalResult
+        if isinstance(result, RetrievalResult):
+            schemas = result.schemas
+            context = result.context
+        else:
+            schemas = result
+            context = []
+
+        sql = self._generator(query, schemas, context=context)
         return self._executor(sql)
