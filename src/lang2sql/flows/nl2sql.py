@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from ..components.execution.sql_executor import SQLExecutor
 from ..components.generation.sql_generator import SQLGenerator
@@ -24,7 +24,7 @@ class BaselineNL2SQL(BaseFlow):
             db=SQLAlchemyDB("sqlite:///sample.db"),
             db_dialect="sqlite",
         )
-        rows = pipeline.run("지난달 주문 건수")
+        rows = pipeline.run("How many orders last month?")
 
     Supported ``db_dialect`` values: ``"sqlite"``, ``"postgresql"``, ``"mysql"``,
     ``"bigquery"``, ``"duckdb"``, ``"default"`` (or ``None`` for default).
@@ -44,7 +44,7 @@ class BaselineNL2SQL(BaseFlow):
         self._generator = SQLGenerator(llm=llm, db_dialect=db_dialect, hook=hook)
         self._executor = SQLExecutor(db=db, hook=hook)
 
-    def _run(self, query: str) -> list[dict[str, Any]]:
-        schemas = self._retriever(query)
+    def _run(self, query: str) -> list[dict]:
+        schemas = self._retriever(query)  # list[CatalogEntry]
         sql = self._generator(query, schemas)
         return self._executor(sql)

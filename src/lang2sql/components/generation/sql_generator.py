@@ -53,11 +53,21 @@ class SQLGenerator(BaseComponent):
         else:
             self._system_prompt = _load_prompt("default")
 
-    def _run(self, query: str, schemas: list[CatalogEntry]) -> str:
-        context = self._build_context(schemas)
+    def _run(
+        self,
+        query: str,
+        schemas: list[CatalogEntry],
+        context: Optional[list[str]] = None,
+    ) -> str:
+        schema_text = self._build_context(schemas)
+        user_parts: list[str] = []
+        if context:
+            user_parts.append("Business Context:\n" + "\n\n".join(context))
+        user_parts.append(f"Schemas:\n{schema_text}\n\nQuestion: {query}")
+        user_content = "\n\n".join(user_parts)
         messages = [
             {"role": "system", "content": self._system_prompt},
-            {"role": "user", "content": f"Schemas:\n{context}\n\nQuestion: {query}"},
+            {"role": "user", "content": user_content},
         ]
         response = self._llm.invoke(messages)
         sql = self._extract_sql(response)
