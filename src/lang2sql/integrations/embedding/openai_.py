@@ -11,14 +11,20 @@ except ImportError:
 class OpenAIEmbedding:
     """EmbeddingPort implementation backed by OpenAI Embeddings API."""
 
-    def __init__(self, *, model: str = "text-embedding-3-small", api_key: str | None = None) -> None:
+    def __init__(
+        self, *, model: str = "text-embedding-3-small", api_key: str | None = None
+    ) -> None:
         if _openai is None:
             raise IntegrationMissingError("openai", hint="pip install openai")
         self._client = _openai.OpenAI(api_key=api_key)
         self._model = model
 
     def embed_query(self, text: str) -> list[float]:
-        return self._client.embeddings.create(input=text, model=self._model).data[0].embedding
+        return (
+            self._client.embeddings.create(input=text, model=self._model)
+            .data[0]
+            .embedding
+        )
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         resp = self._client.embeddings.create(input=texts, model=self._model)

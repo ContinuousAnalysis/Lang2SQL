@@ -65,9 +65,9 @@ class HybridNL2SQL(BaseFlow):
             hook=hook,
         )
         self._generator = SQLGenerator(llm=llm, db_dialect=db_dialect, hook=hook)
-        self._executor  = SQLExecutor(db=db, hook=hook)
+        self._executor = SQLExecutor(db=db, hook=hook)
 
     def _run(self, query: str) -> list[dict]:
-        result = self._retriever(query)          # RetrievalResult
-        sql    = self._generator(query, result.schemas, context=result.context)
+        result = self._retriever(query)  # RetrievalResult
+        sql = self._generator(query, result.schemas, context=result.context)
         return self._executor(sql)

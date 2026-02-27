@@ -22,7 +22,6 @@ from lang2sql.core.catalog import RetrievalResult
 from lang2sql.core.hooks import MemoryHook
 from lang2sql.flows.hybrid import HybridNL2SQL
 
-
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------
@@ -51,7 +50,7 @@ class SmartFakeEmbedding:
     Query "BOTHDIM KWCOMMON" has "bothdim" → embeds to [√½, 0, √½, 0].
     """
 
-    _SQRT2_INV = 2.0 ** -0.5  # ≈ 0.7071
+    _SQRT2_INV = 2.0**-0.5  # ≈ 0.7071
 
     def _embed(self, text: str) -> list[float]:
         t = text.lower()

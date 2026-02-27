@@ -21,11 +21,7 @@ class MarkdownLoader:
     def load(self, path: str) -> list[TextDocument]:
         p = Path(path)
         if p.is_dir():
-            return [
-                doc
-                for f in sorted(p.rglob("*.md"))
-                for doc in self._load_file(f)
-            ]
+            return [doc for f in sorted(p.rglob("*.md")) for doc in self._load_file(f)]
         return self._load_file(p)
 
     def _load_file(self, path: Path) -> list[TextDocument]:

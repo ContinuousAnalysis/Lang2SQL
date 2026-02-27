@@ -11,7 +11,6 @@ import pytest
 from lang2sql.components.loaders import DirectoryLoader, MarkdownLoader, PlainTextLoader
 from lang2sql.core.ports import DocumentLoaderPort
 
-
 # ---------------------------------------------------------------------------
 # 1. MarkdownLoader — single file: TextDocument fields are correct
 # ---------------------------------------------------------------------------
@@ -19,7 +18,9 @@ from lang2sql.core.ports import DocumentLoaderPort
 
 def test_markdown_loader_single_file(tmp_path):
     md_file = tmp_path / "revenue.md"
-    md_file.write_text("# Revenue Definition\n\nRevenue is net sales.", encoding="utf-8")
+    md_file.write_text(
+        "# Revenue Definition\n\nRevenue is net sales.", encoding="utf-8"
+    )
 
     docs = MarkdownLoader().load(str(md_file))
 
@@ -108,8 +109,8 @@ def test_directory_loader_dispatches_by_extension(tmp_path):
     docs = DirectoryLoader(str(tmp_path)).load()
 
     ids = {d["id"] for d in docs}
-    assert "guide" in ids   # loaded by MarkdownLoader
-    assert "data" in ids    # loaded by PlainTextLoader
+    assert "guide" in ids  # loaded by MarkdownLoader
+    assert "data" in ids  # loaded by PlainTextLoader
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +126,9 @@ def test_directory_loader_skips_unknown_extension(tmp_path):
     docs = DirectoryLoader(str(tmp_path)).load()
 
     ids = {d["id"] for d in docs}
-    assert "readme" in ids        # .md is loaded
-    assert "script" not in ids    # .py is skipped
-    assert "data" not in ids      # .csv is skipped (not in default loaders)
+    assert "readme" in ids  # .md is loaded
+    assert "script" not in ids  # .py is skipped
+    assert "data" not in ids  # .csv is skipped (not in default loaders)
 
 
 # ---------------------------------------------------------------------------

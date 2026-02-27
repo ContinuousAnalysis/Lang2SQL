@@ -45,6 +45,6 @@ class BaselineNL2SQL(BaseFlow):
         self._executor = SQLExecutor(db=db, hook=hook)
 
     def _run(self, query: str) -> list[dict]:
-        schemas = self._retriever(query)          # list[CatalogEntry]
-        sql     = self._generator(query, schemas)
-        return  self._executor(sql)
+        schemas = self._retriever(query)  # list[CatalogEntry]
+        sql = self._generator(query, schemas)
+        return self._executor(sql)
