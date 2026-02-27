@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import VectorStorePort
 
 try:
     import psycopg2 as _psycopg2
@@ -10,7 +11,7 @@ except ImportError:
     _register_vector = None  # type: ignore[assignment]
 
 
-class PGVectorStore:
+class PGVectorStore(VectorStorePort):
     """
     PostgreSQL pgvector-backed vector store.
 

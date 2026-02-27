@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import LLMPort
 
 try:
     import anthropic as _anthropic
@@ -8,7 +9,7 @@ except ImportError:
     _anthropic = None  # type: ignore[assignment]
 
 
-class AnthropicLLM:
+class AnthropicLLM(LLMPort):
     """LLMPort implementation backed by the Anthropic Messages API."""
 
     def __init__(self, *, model: str, api_key: str | None = None) -> None:

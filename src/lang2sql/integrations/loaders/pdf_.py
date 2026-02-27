@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ...core.catalog import TextDocument
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import DocumentLoaderPort
 
 try:
     import fitz as _fitz
@@ -11,7 +12,7 @@ except ImportError:
     _fitz = None  # type: ignore[assignment]
 
 
-class PDFLoader:
+class PDFLoader(DocumentLoaderPort):
     """
     PDF file → list[TextDocument].
 

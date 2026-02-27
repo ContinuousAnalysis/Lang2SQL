@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import DBPort
 
 try:
     from sqlalchemy import create_engine, text as sa_text
@@ -13,7 +14,7 @@ except ImportError:
     Engine = None  # type: ignore[assignment,misc]
 
 
-class SQLAlchemyDB:
+class SQLAlchemyDB(DBPort):
     """DBPort implementation backed by SQLAlchemy 2.x."""
 
     def __init__(self, url: str) -> None:

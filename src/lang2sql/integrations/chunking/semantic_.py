@@ -3,9 +3,10 @@ from __future__ import annotations
 from ...core.catalog import IndexedChunk, TextDocument
 from ...core.exceptions import IntegrationMissingError
 from ...core.ports import EmbeddingPort
+from ...components.retrieval.chunker import DocumentChunkerPort
 
 
-class SemanticChunker:
+class SemanticChunker(DocumentChunkerPort):
     """
     Embedding-based semantic chunker. Optional — explicit opt-in only.
 

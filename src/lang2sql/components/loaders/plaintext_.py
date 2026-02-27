@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from ...core.catalog import TextDocument
+from ...core.ports import DocumentLoaderPort
 
 
-class PlainTextLoader:
+class PlainTextLoader(DocumentLoaderPort):
     """
     Plain text file(s) (.txt, etc.) → list[TextDocument].
 

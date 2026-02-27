@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 from ...core.catalog import TextDocument
+from ...core.ports import DocumentLoaderPort
 
 
-class MarkdownLoader:
+class MarkdownLoader(DocumentLoaderPort):
     """
     Markdown file(s) (.md) → list[TextDocument].
 

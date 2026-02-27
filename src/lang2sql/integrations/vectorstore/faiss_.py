@@ -4,6 +4,7 @@ import json
 import pathlib
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import VectorStorePort
 
 try:
     import faiss as _faiss
@@ -13,7 +14,7 @@ except ImportError:
     _np = None  # type: ignore[assignment]
 
 
-class FAISSVectorStore:
+class FAISSVectorStore(VectorStorePort):
     """
     FAISS-backed vector store with optional file persistence.
 

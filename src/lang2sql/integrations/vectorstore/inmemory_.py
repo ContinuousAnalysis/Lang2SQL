@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import VectorStorePort
 
 try:
     import numpy as _np
@@ -8,7 +9,7 @@ except ImportError:
     _np = None  # type: ignore[assignment]
 
 
-class InMemoryVectorStore:
+class InMemoryVectorStore(VectorStorePort):
     """
     Brute-force cosine similarity vector store backed by numpy.
 
