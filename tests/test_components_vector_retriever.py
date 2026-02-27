@@ -1,17 +1,16 @@
 """
-Tests for VectorRetriever, IndexBuilder, CatalogChunker, RecursiveCharacterChunker — 16 cases.
+Tests for VectorRetriever, CatalogChunker, RecursiveCharacterChunker — 16 cases.
 
 Mock strategy:
 - FakeVectorStore + FakeEmbedding for tests that control search results explicitly.
 - InMemoryVectorStore + FakeEmbedding for tests that verify actual storage/merge behavior
-  (tests 10, 15, 16). FakeVectorStore.search() returns pre-configured results, so it
-  cannot catch real storage bugs.
+  (tests 10, from_chunks_add_incremental). FakeVectorStore.search() returns pre-configured
+  results, so it cannot catch real storage bugs.
 """
 
 import pytest
 
 from lang2sql.components.retrieval.chunker import CatalogChunker, RecursiveCharacterChunker
-from lang2sql.components.retrieval.index_builder import IndexBuilder
 from lang2sql.components.retrieval.vector import VectorRetriever
 from lang2sql.core.catalog import RetrievalResult
 from lang2sql.core.hooks import MemoryHook
@@ -273,72 +272,60 @@ def test_hook_start_end_events():
 
 
 # ---------------------------------------------------------------------------
-# 8. IndexBuilder — catalog populates registry
+# 8. from_chunks() — catalog chunks populate registry
 # ---------------------------------------------------------------------------
 
 
-def test_index_builder_catalog_populates_registry():
-    """registry has chunks after builder.run(catalog)."""
-    registry: dict = {}
-    store = FakeVectorStore()
-    builder = IndexBuilder(
-        embedding=FakeEmbedding(), vectorstore=store, registry=registry
-    )
-    builder.run(CATALOG)
+def test_from_chunks_catalog_populates_registry():
+    """from_chunks(catalog_chunks) populates registry with catalog source_type."""
+    chunks = CatalogChunker().split(CATALOG)
+    retriever = VectorRetriever.from_chunks(chunks, embedding=FakeEmbedding())
 
-    assert len(registry) > 0
-    # every chunk must be a catalog chunk
-    for chunk in registry.values():
+    assert len(retriever._registry) > 0
+    for chunk in retriever._registry.values():
         assert chunk["source_type"] == "catalog"
         assert chunk["source_id"] == "orders"
 
 
 # ---------------------------------------------------------------------------
-# 9. IndexBuilder — document populates registry
+# 9. from_chunks() — document chunks populate registry
 # ---------------------------------------------------------------------------
 
 
-def test_index_builder_document_populates_registry():
-    """registry has chunks after builder.run(docs)."""
-    registry: dict = {}
-    store = FakeVectorStore()
-    builder = IndexBuilder(
-        embedding=FakeEmbedding(), vectorstore=store, registry=registry
-    )
-    builder.run(DOCS)
+def test_from_chunks_doc_populates_registry():
+    """from_chunks(doc_chunks) populates registry with document source_type."""
+    chunks = RecursiveCharacterChunker().split(DOCS)
+    retriever = VectorRetriever.from_chunks(chunks, embedding=FakeEmbedding())
 
-    assert len(registry) > 0
-    for chunk in registry.values():
+    assert len(retriever._registry) > 0
+    for chunk in retriever._registry.values():
         assert chunk["source_type"] == "document"
         assert chunk["source_id"] == "biz_rules"
 
 
 # ---------------------------------------------------------------------------
-# 10. InMemoryVectorStore merge — catalog survives after doc run
+# 10. InMemoryVectorStore merge — catalog survives after doc chunks added
 # ---------------------------------------------------------------------------
 
 
-def test_index_builder_preserves_catalog_after_doc_run():
+def test_from_chunks_preserves_catalog_after_doc_run():
     """
-    catalog vectors survive a subsequent builder.run(docs) call.
-    Uses InMemoryVectorStore directly to verify real merge behavior —
-    FakeVectorStore cannot catch this bug.
+    catalog vectors survive when doc chunks are combined.
+    Uses InMemoryVectorStore to verify real merge behavior.
     """
     store = InMemoryVectorStore()
-    registry: dict = {}
-    builder = IndexBuilder(
-        embedding=FakeEmbedding(), vectorstore=store, registry=registry
+    catalog_chunks = CatalogChunker().split(CATALOG)
+    retriever = VectorRetriever.from_chunks(
+        catalog_chunks, embedding=FakeEmbedding(), vectorstore=store
     )
-
-    builder.run(CATALOG)
-    catalog_chunk_ids = set(registry.keys())
+    catalog_chunk_ids = set(retriever._registry.keys())
     assert len(catalog_chunk_ids) > 0
 
-    builder.run(DOCS)
+    doc_chunks = RecursiveCharacterChunker().split(DOCS)
+    retriever.add(doc_chunks)
 
-    # all catalog chunk ids must still be present in the store after adding docs
     for chunk_id in catalog_chunk_ids:
-        assert chunk_id in store._store, f"catalog chunk '{chunk_id}' lost after doc run"
+        assert chunk_id in store._store, f"catalog chunk '{chunk_id}' lost after add()"
 
 
 # ---------------------------------------------------------------------------
@@ -404,28 +391,7 @@ def test_recursive_chunker_overlap():
 
 
 # ---------------------------------------------------------------------------
-# 14. IndexBuilder hook events
-# ---------------------------------------------------------------------------
-
-
-def test_index_builder_hook_events():
-    """IndexBuilder hook start/end events are recorded."""
-    hook = MemoryHook()
-    store = FakeVectorStore()
-    registry: dict = {}
-    builder = IndexBuilder(
-        embedding=FakeEmbedding(), vectorstore=store, registry=registry, hook=hook
-    )
-    builder.run(CATALOG)
-
-    assert len(hook.events) == 2
-    assert hook.events[0].phase == "start"
-    assert hook.events[1].phase == "end"
-    assert hook.events[1].duration_ms is not None
-
-
-# ---------------------------------------------------------------------------
-# 15. from_sources() — builds retriever
+# 14. from_sources() — builds retriever with non-empty registry
 # ---------------------------------------------------------------------------
 
 
@@ -438,16 +404,15 @@ def test_from_sources_builds_retriever():
 
     assert isinstance(retriever, VectorRetriever)
     assert len(retriever._registry) > 0
-    assert retriever._index_builder is not None
 
 
 # ---------------------------------------------------------------------------
-# 16. from_sources() + add() — incremental indexing
+# 15. from_sources() + add() — incremental indexing
 # ---------------------------------------------------------------------------
 
 
 def test_from_sources_add_incremental():
-    """retriever.add(docs) adds chunks without losing existing catalog chunks."""
+    """retriever.add(chunks) adds chunks without losing existing catalog chunks."""
     retriever = VectorRetriever.from_sources(
         catalog=CATALOG,
         embedding=FakeEmbedding(),
@@ -455,7 +420,8 @@ def test_from_sources_add_incremental():
     initial_ids = set(retriever._registry.keys())
     assert len(initial_ids) > 0
 
-    retriever.add(DOCS)
+    doc_chunks = RecursiveCharacterChunker().split(DOCS)
+    retriever.add(doc_chunks)
 
     final_ids = set(retriever._registry.keys())
     # new doc chunks were added
@@ -463,3 +429,70 @@ def test_from_sources_add_incremental():
     # original catalog chunks are still present
     for chunk_id in initial_ids:
         assert chunk_id in final_ids, f"catalog chunk '{chunk_id}' lost after add()"
+
+
+# ---------------------------------------------------------------------------
+# 16. from_chunks() — empty chunks → empty result
+# ---------------------------------------------------------------------------
+
+
+def test_from_chunks_empty():
+    """from_chunks([]) → retriever with empty registry returns empty result."""
+    retriever = VectorRetriever.from_chunks([], embedding=FakeEmbedding())
+
+    assert retriever._registry == {}
+    result = retriever("any query")
+    assert result.schemas == []
+    assert result.context == []
+
+
+# ---------------------------------------------------------------------------
+# 17. from_chunks() — mixed catalog + doc chunks
+# ---------------------------------------------------------------------------
+
+
+def test_from_chunks_mixed_catalog_and_docs():
+    """from_chunks with catalog + doc chunks → both source_types in registry."""
+    chunks = CatalogChunker().split(CATALOG) + RecursiveCharacterChunker().split(DOCS)
+    retriever = VectorRetriever.from_chunks(chunks, embedding=FakeEmbedding())
+
+    source_types = {c["source_type"] for c in retriever._registry.values()}
+    assert "catalog" in source_types
+    assert "document" in source_types
+
+
+# ---------------------------------------------------------------------------
+# 18. from_chunks() + add() — incremental after from_chunks
+# ---------------------------------------------------------------------------
+
+
+def test_from_chunks_add_incremental():
+    """from_chunks() followed by add(more_chunks) preserves original chunks."""
+    store = InMemoryVectorStore()
+    catalog_chunks = CatalogChunker().split(CATALOG)
+    retriever = VectorRetriever.from_chunks(
+        catalog_chunks, embedding=FakeEmbedding(), vectorstore=store
+    )
+    initial_ids = set(retriever._registry.keys())
+
+    doc_chunks = RecursiveCharacterChunker().split(DOCS)
+    retriever.add(doc_chunks)
+
+    final_ids = set(retriever._registry.keys())
+    assert len(final_ids) > len(initial_ids)
+    for chunk_id in initial_ids:
+        assert chunk_id in final_ids, f"chunk '{chunk_id}' lost after add()"
+
+
+# ---------------------------------------------------------------------------
+# 19. CatalogChunker.split() — batch convenience method
+# ---------------------------------------------------------------------------
+
+
+def test_catalog_chunker_split_batch():
+    """CatalogChunker.split(catalog) returns same chunks as calling chunk() per entry."""
+    chunker = CatalogChunker()
+    by_split = chunker.split(CATALOG)
+    by_chunk = [c for entry in CATALOG for c in chunker.chunk(entry)]
+
+    assert [c["chunk_id"] for c in by_split] == [c["chunk_id"] for c in by_chunk]
