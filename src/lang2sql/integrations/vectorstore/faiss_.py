@@ -82,6 +82,7 @@ class FAISSVectorStore:
             )
         if self._index is None:
             raise RuntimeError("Cannot save before any upsert() call.")
+        pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
         _faiss.write_index(self._index, path)
         pathlib.Path(path + ".meta").write_text(
             json.dumps(self._ids), encoding="utf-8"
