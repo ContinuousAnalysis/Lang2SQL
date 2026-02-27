@@ -35,7 +35,7 @@ class SemanticChunker:
         embedding = OpenAIEmbedding()
         chunker = SemanticChunker(embedding=embedding)
 
-        builder = IndexBuilder(..., document_chunker=chunker)
+        retriever = VectorRetriever.from_sources(..., splitter=chunker)
     """
 
     def __init__(
@@ -52,6 +52,10 @@ class SemanticChunker:
         self._embedding = embedding
         self._threshold = breakpoint_threshold
         self._min_size = min_chunk_size
+
+    def split(self, docs: list[TextDocument]) -> list[IndexedChunk]:
+        """LangChain-style batch split: list input → list output."""
+        return [c for doc in docs for c in self.chunk(doc)]
 
     def chunk(self, doc: TextDocument) -> list[IndexedChunk]:
         import numpy as np
