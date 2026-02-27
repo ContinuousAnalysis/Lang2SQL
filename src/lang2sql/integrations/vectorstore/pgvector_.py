@@ -63,6 +63,8 @@ class PGVectorStore(VectorStorePort):
 
     def upsert(self, ids: list[str], vectors: list[list[float]]) -> None:
         """Create table if needed, then upsert all (id, vector) pairs."""
+        if not vectors:
+            return
         self._ensure_table(len(vectors[0]))
         with self._conn.cursor() as cur:
             for id_, vec in zip(ids, vectors):
