@@ -88,7 +88,9 @@ class CatalogChunker:
                     source_type="catalog",
                     source_id=name,
                     chunk_index=i + 1,
-                    metadata=dict(entry),  # preserve full CatalogEntry in every column chunk
+                    metadata=dict(
+                        entry
+                    ),  # preserve full CatalogEntry in every column chunk
                 )
             )
 
@@ -148,7 +150,11 @@ class RecursiveCharacterChunker:
                 source_type="document",
                 source_id=doc_id,
                 chunk_index=i,
-                metadata={"id": doc_id, "title": title, "source": doc.get("source", "")},
+                metadata={
+                    "id": doc_id,
+                    "title": title,
+                    "source": doc.get("source", ""),
+                },
             )
             for i, text in enumerate(raw_chunks)
         ]
@@ -167,7 +173,9 @@ class RecursiveCharacterChunker:
         current = ""
 
         for part in parts:
-            candidate = (current + separator + part).lstrip(separator) if current else part
+            candidate = (
+                (current + separator + part).lstrip(separator) if current else part
+            )
             if len(candidate) <= self._chunk_size:
                 current = candidate
             else:
@@ -191,6 +199,6 @@ class RecursiveCharacterChunker:
     def _apply_overlap(self, chunks: list[str]) -> list[str]:
         overlapped = [chunks[0]]
         for i in range(1, len(chunks)):
-            prev_tail = chunks[i - 1][-self._chunk_overlap:]
+            prev_tail = chunks[i - 1][-self._chunk_overlap :]
             overlapped.append(prev_tail + chunks[i])
         return overlapped

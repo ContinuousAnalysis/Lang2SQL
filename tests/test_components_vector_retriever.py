@@ -10,13 +10,15 @@ Mock strategy:
 
 import pytest
 
-from lang2sql.components.retrieval.chunker import CatalogChunker, RecursiveCharacterChunker
+from lang2sql.components.retrieval.chunker import (
+    CatalogChunker,
+    RecursiveCharacterChunker,
+)
 from lang2sql.components.retrieval.vector import VectorRetriever
 from lang2sql.core.catalog import RetrievalResult
 from lang2sql.core.hooks import MemoryHook
 from lang2sql.flows.baseline import SequentialFlow
 from lang2sql.integrations.vectorstore import InMemoryVectorStore
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -97,7 +99,11 @@ def _make_doc_registry():
             "source_type": "document",
             "source_id": "biz_rules",
             "chunk_index": 0,
-            "metadata": {"id": "biz_rules", "title": "Revenue Definition", "source": ""},
+            "metadata": {
+                "id": "biz_rules",
+                "title": "Revenue Definition",
+                "source": "",
+            },
         }
     }
 

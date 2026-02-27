@@ -12,7 +12,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-
 _SAMPLE_FILES: dict[str, str] = {
     "revenue.md": """
 # 순매출 정의

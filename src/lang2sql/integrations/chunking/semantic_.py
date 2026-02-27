@@ -87,7 +87,9 @@ class SemanticChunker:
         for start, end in zip(boundaries, boundaries[1:]):
             chunk_text = " ".join(sentences[start:end])
             if len(chunk_text) < self._min_size and raw_chunks:
-                raw_chunks[-1] += " " + chunk_text  # merge short trailing chunk into previous
+                raw_chunks[-1] += (
+                    " " + chunk_text
+                )  # merge short trailing chunk into previous
             else:
                 raw_chunks.append(chunk_text)
 
@@ -110,7 +112,11 @@ class SemanticChunker:
                 source_type="document",
                 source_id=doc_id,
                 chunk_index=i,
-                metadata={"id": doc_id, "title": title, "source": doc.get("source", "")},
+                metadata={
+                    "id": doc_id,
+                    "title": title,
+                    "source": doc.get("source", ""),
+                },
             )
             for i, text in enumerate(texts)
         ]

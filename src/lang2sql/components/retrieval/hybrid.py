@@ -81,8 +81,8 @@ class HybridRetriever(BaseComponent):
                 .schemas — top_n schemas after RRF merge
                 .context — business document context from VectorRetriever
         """
-        keyword_schemas = self._keyword(query)          # list[CatalogEntry]
-        vector_result   = self._vector(query)           # RetrievalResult
+        keyword_schemas = self._keyword(query)  # list[CatalogEntry]
+        vector_result = self._vector(query)  # RetrievalResult
 
         merged = self._rrf_merge(keyword_schemas, vector_result.schemas)
         return RetrievalResult(schemas=merged, context=vector_result.context)
