@@ -12,7 +12,7 @@ class DocumentChunkerPort(Protocol):
 
     Default implementation: RecursiveCharacterChunker
     Advanced implementation: SemanticChunker (integrations/chunking/semantic_.py)
-    Custom implementation: any class satisfying this Protocol can be injected into IndexBuilder.
+    Custom implementation: any class satisfying this Protocol can be passed as splitter.
 
     Example (wrapping LangChain)::
 
@@ -31,7 +31,7 @@ class DocumentChunkerPort(Protocol):
                     for i, t in enumerate(texts)
                 ]
 
-        builder = IndexBuilder(..., document_chunker=LangChainChunkerAdapter(...))
+        retriever = VectorRetriever.from_sources(..., splitter=LangChainChunkerAdapter(...))
     """
 
     def chunk(self, doc: TextDocument) -> list[IndexedChunk]: ...
@@ -53,6 +53,10 @@ class CatalogChunker:
 
     def __init__(self, max_columns_per_chunk: int = 20) -> None:
         self._max_cols = max_columns_per_chunk
+
+    def split(self, catalog: list[CatalogEntry]) -> list[IndexedChunk]:
+        """LangChain-style batch split: list input → list output."""
+        return [c for entry in catalog for c in self.chunk(entry)]
 
     def chunk(self, entry: CatalogEntry) -> list[IndexedChunk]:
         name = entry.get("name", "")
@@ -123,6 +127,10 @@ class RecursiveCharacterChunker:
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self._separators = separators or self._DEFAULT_SEPARATORS
+
+    def split(self, docs: list[TextDocument]) -> list[IndexedChunk]:
+        """LangChain-style batch split: list input → list output."""
+        return [c for doc in docs for c in self.chunk(doc)]
 
     def chunk(self, doc: TextDocument) -> list[IndexedChunk]:
         content = doc.get("content", "")
