@@ -5,7 +5,6 @@ from .components.loaders.markdown_ import MarkdownLoader
 from .components.loaders.plaintext_ import PlainTextLoader
 from .components.retrieval.chunker import CatalogChunker, DocumentChunkerPort, RecursiveCharacterChunker
 from .components.retrieval.hybrid import HybridRetriever
-from .components.retrieval.index_builder import IndexBuilder
 from .components.retrieval.keyword import KeywordRetriever
 from .components.retrieval.vector import VectorRetriever
 from .core.catalog import CatalogEntry, IndexedChunk, RetrievalResult, TextDocument
@@ -31,7 +30,6 @@ __all__ = [
     "KeywordRetriever",
     "VectorRetriever",
     "HybridRetriever",
-    "IndexBuilder",
     "DocumentChunkerPort",
     "CatalogChunker",
     "RecursiveCharacterChunker",
