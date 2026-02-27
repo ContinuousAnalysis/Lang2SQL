@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from ...core.base import BaseComponent
 from ...core.catalog import CatalogEntry, IndexedChunk, RetrievalResult, TextDocument
@@ -8,36 +8,32 @@ from ...core.hooks import TraceHook
 from ...core.ports import EmbeddingPort, VectorStorePort
 from .chunker import CatalogChunker, DocumentChunkerPort
 
-if TYPE_CHECKING:
-    from .index_builder import IndexBuilder
-
 
 class VectorRetriever(BaseComponent):
     """
     Catalog + business document retrieval via vector similarity.
 
-    Must share the same registry as the IndexBuilder used to build the index.
     RetrievalResult.schemas is deduplicated by source table — multiple chunks
     from the same table produce only one CatalogEntry in the result.
 
     Two construction patterns:
 
-    1. Manual (full control, incremental indexing):
-        registry: dict = {}
-        builder   = IndexBuilder(embedding=..., vectorstore=..., registry=registry)
-        retriever = VectorRetriever(vectorstore=..., embedding=..., registry=registry)
-        builder.run(catalog)
-        builder.run(docs)
-        builder.run(more_docs)  # incremental — add anytime
-
-    2. Convenience factory (quick start, build-once):
+    1. One-touch factory (quick start):
         retriever = VectorRetriever.from_sources(catalog=..., embedding=...)
-        retriever.add(more_docs)  # incremental add after construction
+        retriever.add(RecursiveCharacterChunker().split(more_docs))  # incremental
+
+    2. Explicit pipeline (full control, LangChain-style):
+        chunks = (
+            CatalogChunker().split(catalog) +
+            RecursiveCharacterChunker().split(docs)
+        )
+        retriever = VectorRetriever.from_chunks(chunks, embedding=embedding, top_n=5)
+        retriever.add(RecursiveCharacterChunker().split(new_docs))  # incremental
 
     Args:
         vectorstore:     VectorStorePort implementation.
         embedding:       EmbeddingPort implementation.
-        registry:        Shared dict[chunk_id, IndexedChunk] from IndexBuilder.
+        registry:        dict[chunk_id, IndexedChunk] mapping.
         top_n:           Maximum schemas and context items to return. Default 5.
         score_threshold: Chunks with score <= this value are excluded. Default 0.0.
         name:            Component name for tracing.
@@ -61,16 +57,13 @@ class VectorRetriever(BaseComponent):
         self._registry = registry
         self._top_n = top_n
         self._score_threshold = score_threshold
-        self._index_builder: Optional[IndexBuilder] = None  # set only by from_sources()
 
     @classmethod
-    def from_sources(
+    def from_chunks(
         cls,
+        chunks: list[IndexedChunk],
         *,
-        catalog: list[CatalogEntry],
         embedding: EmbeddingPort,
-        documents: Optional[list[TextDocument]] = None,
-        document_chunker: Optional[DocumentChunkerPort] = None,
         vectorstore: Optional[VectorStorePort] = None,
         top_n: int = 5,
         score_threshold: float = 0.0,
@@ -78,42 +71,30 @@ class VectorRetriever(BaseComponent):
         hook: Optional[TraceHook] = None,
     ) -> "VectorRetriever":
         """
-        Convenience factory: build index and return a ready-to-use retriever in one call.
+        LangChain-style factory: build from pre-split chunks.
 
-        Internally creates InMemoryVectorStore, IndexBuilder, and shared registry,
-        then runs indexing for the given catalog and optional documents.
-
-        For incremental document addition after construction, use retriever.add().
-        For full control over the indexing pipeline (custom vectorstore, load saved index,
-        etc.), use IndexBuilder and VectorRetriever directly instead.
+        Embeds and stores the given chunks; no splitting is performed here.
+        Use chunker.split(docs) before calling this method.
 
         Args:
-            catalog:          List of CatalogEntry dicts to index.
-            embedding:        EmbeddingPort implementation.
-            documents:        Optional list of TextDocument to index alongside catalog.
-            document_chunker: Chunker for documents. Defaults to RecursiveCharacterChunker.
-                              Pass SemanticChunker(embedding=...) for higher quality.
-            vectorstore:      Defaults to InMemoryVectorStore.
-            top_n:            Maximum schemas and context items to return. Default 5.
-            score_threshold:  Score cutoff. Default 0.0.
+            chunks:          Pre-split list[IndexedChunk] (e.g. from CatalogChunker.split()).
+            embedding:       EmbeddingPort implementation.
+            vectorstore:     Defaults to InMemoryVectorStore.
+            top_n:           Maximum schemas and context items to return. Default 5.
+            score_threshold: Score cutoff. Default 0.0.
         """
         from ...integrations.vectorstore.inmemory_ import InMemoryVectorStore
-        from .index_builder import IndexBuilder
 
         store = vectorstore or InMemoryVectorStore()
         registry: dict = {}
+        if chunks:
+            ids = [c["chunk_id"] for c in chunks]
+            texts = [c["text"] for c in chunks]
+            vectors = embedding.embed_texts(texts)
+            store.upsert(ids, vectors)
+            registry.update({c["chunk_id"]: c for c in chunks})
 
-        builder = IndexBuilder(
-            embedding=embedding,
-            vectorstore=store,
-            registry=registry,
-            document_chunker=document_chunker,
-        )
-        builder.run(catalog)
-        if documents:
-            builder.run(documents)
-
-        retriever = cls(
+        return cls(
             vectorstore=store,
             embedding=embedding,
             registry=registry,
@@ -122,28 +103,70 @@ class VectorRetriever(BaseComponent):
             name=name,
             hook=hook,
         )
-        retriever._index_builder = builder
-        return retriever
 
-    def add(self, items: list) -> None:
+    @classmethod
+    def from_sources(
+        cls,
+        *,
+        catalog: list[CatalogEntry],
+        embedding: EmbeddingPort,
+        documents: Optional[list[TextDocument]] = None,
+        splitter: Optional[DocumentChunkerPort] = None,
+        vectorstore: Optional[VectorStorePort] = None,
+        top_n: int = 5,
+        score_threshold: float = 0.0,
+        name: Optional[str] = None,
+        hook: Optional[TraceHook] = None,
+    ) -> "VectorRetriever":
         """
-        Add more catalog entries or documents to the index incrementally.
+        One-touch factory: chunk, embed, and index in a single call.
 
-        Only available on retrievers created via from_sources().
-        For manually constructed retrievers, call IndexBuilder.run() directly.
+        Internally calls from_chunks() after splitting catalog and documents.
+        For incremental addition after construction, use retriever.add(chunks).
 
         Args:
-            items: list[CatalogEntry] or list[TextDocument].
-
-        Raises:
-            RuntimeError: if called on a retriever not created via from_sources().
+            catalog:          List of CatalogEntry dicts to index.
+            embedding:        EmbeddingPort implementation.
+            documents:        Optional list of TextDocument to index alongside catalog.
+            splitter:         Chunker for documents. Defaults to RecursiveCharacterChunker.
+                              Pass SemanticChunker(embedding=...) for higher quality.
+            vectorstore:      Defaults to InMemoryVectorStore.
+            top_n:            Maximum schemas and context items to return. Default 5.
+            score_threshold:  Score cutoff. Default 0.0.
         """
-        if self._index_builder is None:
-            raise RuntimeError(
-                "add() is only available on retrievers created via VectorRetriever.from_sources(). "
-                "For manually constructed retrievers, call IndexBuilder.run() directly."
-            )
-        self._index_builder.run(items)
+        from .chunker import RecursiveCharacterChunker
+
+        _splitter = splitter or RecursiveCharacterChunker()
+        chunks = CatalogChunker().split(catalog)
+        if documents:
+            chunks = chunks + _splitter.split(documents)
+
+        return cls.from_chunks(
+            chunks,
+            embedding=embedding,
+            vectorstore=vectorstore,
+            top_n=top_n,
+            score_threshold=score_threshold,
+            name=name,
+            hook=hook,
+        )
+
+    def add(self, chunks: list[IndexedChunk]) -> None:
+        """
+        Add pre-split chunks to the index incrementally.
+
+        Use chunker.split(docs) before calling this method.
+
+        Args:
+            chunks: list[IndexedChunk] from chunker.split().
+        """
+        if not chunks:
+            return
+        ids = [c["chunk_id"] for c in chunks]
+        texts = [c["text"] for c in chunks]
+        vectors = self._embedding.embed_texts(texts)
+        self._vectorstore.upsert(ids, vectors)
+        self._registry.update({c["chunk_id"]: c for c in chunks})
 
     def _run(self, query: str) -> RetrievalResult:
         """
