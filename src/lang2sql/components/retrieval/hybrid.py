@@ -28,7 +28,7 @@ class HybridRetriever(BaseComponent):
         catalog:          List of CatalogEntry dicts.
         embedding:        EmbeddingPort implementation.
         documents:        Optional list of business documents to index.
-        document_chunker: Chunking strategy for documents (default: RecursiveCharacterChunker).
+        splitter:         Chunking strategy for documents (default: RecursiveCharacterChunker).
         top_n:            Maximum number of schemas to return. Default 5.
         rrf_k:            RRF smoothing constant. Default 60.
         score_threshold:  Minimum vector similarity score. Default 0.0.
@@ -50,7 +50,7 @@ class HybridRetriever(BaseComponent):
         catalog: list[CatalogEntry],
         embedding: EmbeddingPort,
         documents: Optional[list[TextDocument]] = None,
-        document_chunker: Optional[DocumentChunkerPort] = None,
+        splitter: Optional[DocumentChunkerPort] = None,
         top_n: int = 5,
         rrf_k: int = 60,
         score_threshold: float = 0.0,
@@ -64,7 +64,7 @@ class HybridRetriever(BaseComponent):
             catalog=catalog,
             embedding=embedding,
             documents=documents,
-            document_chunker=document_chunker,
+            splitter=splitter,
             top_n=fetch,
             score_threshold=score_threshold,
         )
