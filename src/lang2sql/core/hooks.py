@@ -27,12 +27,12 @@ class TraceHook(Protocol):
     def on_event(self, event: Event) -> None: ...
 
 
-class NullHook:
+class NullHook(TraceHook):
     def on_event(self, event: Event) -> None:
         return
 
 
-class MemoryHook:
+class MemoryHook(TraceHook):
     def __init__(self) -> None:
         self.events: list[Event] = []
 

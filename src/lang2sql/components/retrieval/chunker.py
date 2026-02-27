@@ -97,7 +97,7 @@ class CatalogChunker:
         return chunks
 
 
-class RecursiveCharacterChunker:
+class RecursiveCharacterChunker(DocumentChunkerPort):
     """
     Hierarchical separator-based document chunker. No external dependencies.
 
@@ -161,6 +161,8 @@ class RecursiveCharacterChunker:
 
     def _split(self, text: str, separators: list[str]) -> list[str]:
         """Recursively try separators until all chunks fit within chunk_size."""
+        if not separators:
+            return [text] if text else []
         chunks: list[str] = []
         separator = separators[-1]  # fallback: character-level split
 
