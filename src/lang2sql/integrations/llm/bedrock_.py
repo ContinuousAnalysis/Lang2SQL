@@ -21,9 +21,7 @@ class BedrockLLM(LLMPort):
         region_name: str = "us-east-1",
     ) -> None:
         if _boto3 is None:
-            raise IntegrationMissingError(
-                "boto3", hint="pip install boto3"
-            )
+            raise IntegrationMissingError("boto3", hint="pip install boto3")
         self._model = model
         self._client = _boto3.client(
             "bedrock-runtime",
@@ -37,8 +35,7 @@ class BedrockLLM(LLMPort):
         user_msgs = [m for m in messages if m["role"] != "system"]
 
         converse_messages = [
-            {"role": m["role"], "content": [{"text": m["content"]}]}
-            for m in user_msgs
+            {"role": m["role"], "content": [{"text": m["content"]}]} for m in user_msgs
         ]
 
         kwargs: dict = {"modelId": self._model, "messages": converse_messages}

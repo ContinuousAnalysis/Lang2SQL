@@ -12,7 +12,6 @@ from lang2sql.core.exceptions import ContractError
 from lang2sql.core.hooks import MemoryHook
 from lang2sql.flows.enriched_nl2sql import EnrichedNL2SQL
 
-
 # ---------------------------------------------------------------------------
 # Fakes
 # ---------------------------------------------------------------------------

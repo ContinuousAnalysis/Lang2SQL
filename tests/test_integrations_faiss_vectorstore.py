@@ -3,6 +3,7 @@ FAISSVectorStore integration tests.
 
 All tests are auto-skipped when faiss-cpu is not installed.
 """
+
 import pytest
 
 faiss = pytest.importorskip("faiss")  # skip entire module if not installed
@@ -11,7 +12,6 @@ import tempfile
 import os
 
 from lang2sql.integrations.vectorstore.faiss_ import FAISSVectorStore
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

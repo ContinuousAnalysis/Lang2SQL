@@ -51,11 +51,11 @@ user_query = st.text_area("쿼리를 입력하세요:", value=DEFAULT_QUERY)
 # 설정
 col1, col2 = st.columns(2)
 with col1:
-    user_dialect = st.selectbox(
-        "SQL 방언(Dialect):", options=DIALECT_OPTIONS, index=0
-    )
+    user_dialect = st.selectbox("SQL 방언(Dialect):", options=DIALECT_OPTIONS, index=0)
 with col2:
-    user_top_n = st.slider("검색할 테이블 정보 개수:", min_value=1, max_value=20, value=5)
+    user_top_n = st.slider(
+        "검색할 테이블 정보 개수:", min_value=1, max_value=20, value=5
+    )
 
 if st.button("쿼리 실행"):
     with st.spinner("쿼리 실행 중..."):

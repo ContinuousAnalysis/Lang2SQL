@@ -19,9 +19,7 @@ class OllamaEmbedding(EmbeddingPort):
         base_url: str = "http://localhost:11434",
     ) -> None:
         if _ollama is None:
-            raise IntegrationMissingError(
-                "ollama", hint="pip install ollama"
-            )
+            raise IntegrationMissingError("ollama", hint="pip install ollama")
         self._model = model
         self._client = _ollama.Client(host=base_url)
 

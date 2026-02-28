@@ -5,6 +5,7 @@ Lang2SQL 실행 모듈.
 지정된 데이터베이스 환경에서 실행하는 함수(`run_lang2sql`)를 제공합니다.
 내부적으로 v2 플로우(BaselineNL2SQL / EnrichedNL2SQL)를 사용한다.
 """
+
 from __future__ import annotations
 
 from typing import Any

@@ -85,9 +85,7 @@ class FAISSVectorStore(VectorStorePort):
             raise RuntimeError("Cannot save before any upsert() call.")
         pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
         _faiss.write_index(self._index, path)
-        pathlib.Path(path + ".meta").write_text(
-            json.dumps(self._ids), encoding="utf-8"
-        )
+        pathlib.Path(path + ".meta").write_text(json.dumps(self._ids), encoding="utf-8")
 
     @classmethod
     def load(cls, path: str) -> "FAISSVectorStore":
@@ -99,9 +97,7 @@ class FAISSVectorStore(VectorStorePort):
             raise IntegrationMissingError("faiss", hint="pip install faiss-cpu")
         meta_path = pathlib.Path(path + ".meta")
         if not pathlib.Path(path).exists() or not meta_path.exists():
-            raise FileNotFoundError(
-                f"Index files not found: {path}, {path}.meta"
-            )
+            raise FileNotFoundError(f"Index files not found: {path}, {path}.meta")
         store = cls(index_path=path)
         store._index = _faiss.read_index(path)
         store._ids = json.loads(meta_path.read_text(encoding="utf-8"))

@@ -3,6 +3,7 @@
 레거시 utils/llm/core/factory.py를 LangChain 없이 재구현한 것.
 CLI와 Streamlit UI 양쪽에서 사용한다.
 """
+
 from __future__ import annotations
 
 import os
@@ -99,7 +100,9 @@ def build_embedding_from_env() -> EmbeddingPort:
         return AzureOpenAIEmbedding(
             azure_deployment=os.environ["AZURE_OPENAI_EMBEDDING_MODEL"],
             azure_endpoint=os.environ["AZURE_OPENAI_EMBEDDING_ENDPOINT"],
-            api_version=os.getenv("AZURE_OPENAI_EMBEDDING_API_VERSION", "2023-09-15-preview"),
+            api_version=os.getenv(
+                "AZURE_OPENAI_EMBEDDING_API_VERSION", "2023-09-15-preview"
+            ),
             api_key=os.getenv("AZURE_OPENAI_EMBEDDING_KEY"),
         )
 
@@ -107,15 +110,23 @@ def build_embedding_from_env() -> EmbeddingPort:
         from .integrations.embedding.ollama_ import OllamaEmbedding
 
         return OllamaEmbedding(
-            model=os.getenv("EMBEDDING_MODEL", os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")),
-            base_url=os.getenv("EMBEDDING_BASE_PATH", os.getenv("OLLAMA_EMBEDDING_BASE_URL", "http://localhost:11434")),
+            model=os.getenv(
+                "EMBEDDING_MODEL",
+                os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"),
+            ),
+            base_url=os.getenv(
+                "EMBEDDING_BASE_PATH",
+                os.getenv("OLLAMA_EMBEDDING_BASE_URL", "http://localhost:11434"),
+            ),
         )
 
     if provider == "bedrock":
         from .integrations.embedding.bedrock_ import BedrockEmbedding
 
         return BedrockEmbedding(
-            model_id=os.getenv("AWS_BEDROCK_EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0"),
+            model_id=os.getenv(
+                "AWS_BEDROCK_EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0"
+            ),
             aws_access_key_id=os.getenv("AWS_BEDROCK_EMBEDDING_ACCESS_KEY_ID"),
             aws_secret_access_key=os.getenv("AWS_BEDROCK_EMBEDDING_SECRET_ACCESS_KEY"),
             region_name=os.getenv("AWS_BEDROCK_EMBEDDING_REGION", "us-east-1"),

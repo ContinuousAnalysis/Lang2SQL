@@ -24,7 +24,11 @@ def _catalog() -> list[CatalogEntry]:
         {
             "name": "orders",
             "description": "주문 테이블",
-            "columns": {"order_id": "주문 ID", "amount": "주문 금액", "created_at": "생성일"},
+            "columns": {
+                "order_id": "주문 ID",
+                "amount": "주문 금액",
+                "created_at": "생성일",
+            },
         },
         {
             "name": "users",
@@ -91,7 +95,13 @@ def test_table_suitability_sorted_by_score():
 def test_table_suitability_empty_result_when_all_below_threshold():
     resp = _suitability_json(
         [
-            {"table_name": "orders", "score": 0.1, "reason": "낮은 관련성", "matched_columns": [], "missing_entities": []},
+            {
+                "table_name": "orders",
+                "score": 0.1,
+                "reason": "낮은 관련성",
+                "matched_columns": [],
+                "missing_entities": [],
+            },
         ]
     )
     evaluator = TableSuitabilityEvaluator(llm=FakeLLM(resp), threshold=0.3)
@@ -102,7 +112,15 @@ def test_table_suitability_empty_result_when_all_below_threshold():
 def test_table_suitability_emits_hook_events():
     hook = MemoryHook()
     resp = _suitability_json(
-        [{"table_name": "orders", "score": 0.8, "reason": "ok", "matched_columns": [], "missing_entities": []}]
+        [
+            {
+                "table_name": "orders",
+                "score": 0.8,
+                "reason": "ok",
+                "matched_columns": [],
+                "missing_entities": [],
+            }
+        ]
     )
     evaluator = TableSuitabilityEvaluator(llm=FakeLLM(resp), hook=hook)
     evaluator.run("test", _catalog())

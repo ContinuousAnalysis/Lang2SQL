@@ -50,10 +50,8 @@ class TableSuitabilityEvaluator(BaseComponent):
             tables_map[name] = {"table_description": desc, **cols}
 
         tables_json = json.dumps(tables_map, ensure_ascii=False)
-        user_content = (
-            self._system_prompt
-            .replace("{question}", query)
-            .replace("{tables}", tables_json)
+        user_content = self._system_prompt.replace("{question}", query).replace(
+            "{tables}", tables_json
         )
         messages = [{"role": "user", "content": user_content}]
         response = self._llm.invoke(messages)

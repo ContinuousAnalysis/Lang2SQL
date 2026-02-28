@@ -79,6 +79,7 @@ def query_command(
         rows = pipeline.run(question)
         if rows:
             import json
+
             print(json.dumps(rows, ensure_ascii=False, indent=2))
         else:
             print("(결과 없음)")

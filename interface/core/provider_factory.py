@@ -3,6 +3,7 @@
 LLMProfile과 EmbeddingProfile(config/models.py)을 받아
 lang2sql.integrations의 구현체를 반환한다.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

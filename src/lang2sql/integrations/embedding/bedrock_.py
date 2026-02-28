@@ -26,9 +26,7 @@ class BedrockEmbedding(EmbeddingPort):
         region_name: str = "us-east-1",
     ) -> None:
         if _boto3 is None:
-            raise IntegrationMissingError(
-                "boto3", hint="pip install boto3"
-            )
+            raise IntegrationMissingError("boto3", hint="pip install boto3")
         self._model_id = model_id
         self._client = _boto3.client(
             "bedrock-runtime",

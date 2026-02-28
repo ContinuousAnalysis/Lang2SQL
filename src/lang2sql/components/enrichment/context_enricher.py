@@ -49,8 +49,7 @@ class ContextEnricher(BaseComponent):
         tables_json = json.dumps(tables_map, ensure_ascii=False)
 
         user_content = (
-            self._system_prompt
-            .replace("{profiles}", profiles_json)
+            self._system_prompt.replace("{profiles}", profiles_json)
             .replace("{related_tables}", tables_json)
             .replace("{refined_question}", query)
         )

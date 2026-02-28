@@ -22,7 +22,11 @@ def _catalog() -> list[CatalogEntry]:
         {
             "name": "orders",
             "description": "주문 테이블",
-            "columns": {"order_id": "주문 ID", "amount": "주문 금액", "created_at": "생성일"},
+            "columns": {
+                "order_id": "주문 ID",
+                "amount": "주문 금액",
+                "created_at": "생성일",
+            },
         }
     ]
 
