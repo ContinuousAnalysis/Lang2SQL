@@ -37,3 +37,37 @@ class RetrievalResult:
 
     schemas: list[CatalogEntry] = field(default_factory=list)
     context: list[str] = field(default_factory=list)
+
+
+@dataclass
+class GateResult:
+    """QuestionGate 컴포넌트의 반환 타입."""
+
+    suitable: bool
+    reason: str
+    missing_entities: list[str] = field(default_factory=list)
+    requires_data_science: bool = False
+
+
+@dataclass
+class QuestionProfile:
+    """질문 특성 프로파일."""
+
+    is_timeseries: bool = False
+    is_aggregation: bool = False
+    has_filter: bool = False
+    is_grouped: bool = False
+    has_ranking: bool = False
+    has_temporal_comparison: bool = False
+    intent_type: str = "lookup"  # trend | lookup | comparison | distribution
+
+
+@dataclass
+class TableScore:
+    """개별 테이블의 적합도 평가 결과."""
+
+    table_name: str
+    score: float
+    reason: str
+    matched_columns: list[str] = field(default_factory=list)
+    missing_entities: list[str] = field(default_factory=list)

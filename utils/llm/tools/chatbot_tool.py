@@ -58,11 +58,26 @@ def search_database_tables(
         - "사용 가능한 컬럼을 보여줘"
         - SQL 쿼리를 생성하기 전에 스키마 정보가 필요할 때
     """
-    from utils.llm.retrieval import search_tables
+    try:
+        import os
 
-    return search_tables(
-        query=query, retriever_name=retriever_name, top_n=top_n, device=device
-    )
+        from lang2sql.components.retrieval.keyword_retriever import KeywordRetriever
+        from lang2sql.integrations.catalog.datahub_ import DataHubCatalogLoader
+
+        gms_server = os.getenv("DATAHUB_SERVER", "http://localhost:8080")
+        loader = DataHubCatalogLoader(gms_server=gms_server)
+        catalog = loader.load()
+        retriever = KeywordRetriever(catalog=catalog)
+        results = retriever.run(query, top_k=top_n)
+        return {
+            entry["name"]: {
+                "table_description": entry.get("description", ""),
+                **entry.get("columns", {}),
+            }
+            for entry in results
+        }
+    except Exception as e:
+        return {"error": True, "message": f"테이블 검색 중 오류 발생: {str(e)}"}
 
 
 def _simplify_glossary_data(glossary_data):

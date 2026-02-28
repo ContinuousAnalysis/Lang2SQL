@@ -1,33 +1,3 @@
-from utils.llm.core.factory import (
-    get_embeddings,
-    get_embeddings_azure,
-    get_embeddings_bedrock,
-    get_embeddings_gemini,
-    get_embeddings_huggingface,
-    get_embeddings_ollama,
-    get_embeddings_openai,
-    get_llm,
-    get_llm_azure,
-    get_llm_bedrock,
-    get_llm_gemini,
-    get_llm_huggingface,
-    get_llm_ollama,
-    get_llm_openai,
-)
+# Legacy LLM core module — factory removed (replaced by src/lang2sql/factory.py)
 
-__all__ = [
-    "get_llm",
-    "get_llm_openai",
-    "get_llm_azure",
-    "get_llm_bedrock",
-    "get_llm_gemini",
-    "get_llm_ollama",
-    "get_llm_huggingface",
-    "get_embeddings",
-    "get_embeddings_openai",
-    "get_embeddings_azure",
-    "get_embeddings_bedrock",
-    "get_embeddings_gemini",
-    "get_embeddings_ollama",
-    "get_embeddings_huggingface",
-]
+__all__ = []
