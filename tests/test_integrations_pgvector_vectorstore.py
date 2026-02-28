@@ -8,6 +8,7 @@ Example:
     TEST_POSTGRES_URL="postgresql://postgres:postgres@localhost:5432/test" \\
         pytest tests/test_integrations_pgvector_vectorstore.py -v
 """
+
 import os
 import pytest
 from uuid import uuid4
@@ -18,7 +19,6 @@ pytestmark = pytest.mark.skipif(
 )
 
 from lang2sql.integrations.vectorstore.pgvector_ import PGVectorStore
-
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
