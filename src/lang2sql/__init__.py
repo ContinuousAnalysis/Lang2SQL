@@ -1,3 +1,5 @@
+from .integrations.vectorstore.faiss_ import FAISSVectorStore
+from .integrations.vectorstore.pgvector_ import PGVectorStore
 from .components.execution.sql_executor import SQLExecutor
 from .components.generation.sql_generator import SQLGenerator
 from .components.loaders.directory_ import DirectoryLoader
@@ -59,4 +61,7 @@ __all__ = [
     "Lang2SQLError",
     "ComponentError",
     "IntegrationMissingError",
+    # Vector store backends
+    "FAISSVectorStore",
+    "PGVectorStore",
 ]

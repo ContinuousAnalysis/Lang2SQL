@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import LLMPort
 
 try:
     import openai as _openai
@@ -8,7 +9,7 @@ except ImportError:
     _openai = None  # type: ignore[assignment]
 
 
-class OpenAILLM:
+class OpenAILLM(LLMPort):
     """LLMPort implementation backed by the OpenAI Chat Completions API."""
 
     def __init__(self, *, model: str, api_key: str | None = None) -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import EmbeddingPort
 
 try:
     import openai as _openai
@@ -8,7 +9,7 @@ except ImportError:
     _openai = None  # type: ignore[assignment]
 
 
-class OpenAIEmbedding:
+class OpenAIEmbedding(EmbeddingPort):
     """EmbeddingPort implementation backed by OpenAI Embeddings API."""
 
     def __init__(

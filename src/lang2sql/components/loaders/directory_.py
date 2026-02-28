@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 from ...core.catalog import TextDocument
@@ -53,5 +54,8 @@ class DirectoryLoader:
             loader = self._loaders.get(file.suffix.lower())
             if loader is None:
                 continue
-            docs.extend(loader.load(str(file)))
+            try:
+                docs.extend(loader.load(str(file)))
+            except Exception as e:
+                warnings.warn(f"Failed to load {file}: {e}", stacklevel=2)
         return docs
