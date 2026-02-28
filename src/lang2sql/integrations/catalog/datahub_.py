@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ...core.catalog import CatalogEntry, TextDocument
 from ...core.exceptions import IntegrationMissingError
+from ...core.ports import CatalogLoaderPort
 
 try:
     import datahub as _datahub  # type: ignore[import]
@@ -9,7 +10,7 @@ except ImportError:
     _datahub = None  # type: ignore[assignment]
 
 
-class DataHubCatalogLoader:
+class DataHubCatalogLoader(CatalogLoaderPort):
     """DataHub URN → list[CatalogEntry] 변환.
 
     DataHub GMS 서버에서 테이블 메타데이터를 조회하여
