@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from .catalog import TextDocument
+from .catalog import CatalogEntry, TextDocument
 
 
 class LLMPort(Protocol):
@@ -57,3 +57,9 @@ class DocumentLoaderPort(Protocol):
     """Converts a file path or directory to list[TextDocument]."""
 
     def load(self, path: str) -> list[TextDocument]: ...
+
+
+class CatalogLoaderPort(Protocol):
+    """Abstracts catalog loading from external sources (DataHub, file, database, etc.)."""
+
+    def load(self) -> list[CatalogEntry]: ...
