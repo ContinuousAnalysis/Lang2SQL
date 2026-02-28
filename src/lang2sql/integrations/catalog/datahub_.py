@@ -121,7 +121,9 @@ class DataHubCatalogLoader:
         return TextDocument(
             id=f"lineage__{table_name}",
             title=f"{table_name} 리니지",
-            content=self._format_lineage(table_name, upstream, downstream, upstream_columns),
+            content=self._format_lineage(
+                table_name, upstream, downstream, upstream_columns
+            ),
             source="datahub",
             metadata={"urn": urn, "table_name": table_name},
         )
