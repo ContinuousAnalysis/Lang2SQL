@@ -190,13 +190,15 @@ retriever = FunctionalComponent(my_retriever, name="MyRetriever", hook=hook)
 
 ```python
 from lang2sql.core.hooks import MemoryHook
+from lang2sql.flows.baseline import SequentialFlow
+
 hook = MemoryHook()
 
-flow = BaselineFlow(steps=[...], hook=hook)  # 또는 컴포넌트마다 hook 주입
-out = flow.run_query("지난달 매출")
+flow = SequentialFlow(steps=[...], hook=hook)  # 또는 컴포넌트마다 hook 주입
+out = flow.run("지난달 매출")
 
 # 이벤트 확인
-for e in hook.events:
+for e in hook.snapshot():
     print(e.phase, e.component, e.duration_ms, e.error)
 ```
 

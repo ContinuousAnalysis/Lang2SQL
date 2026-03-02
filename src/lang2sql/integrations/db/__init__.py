@@ -1,3 +1,3 @@
-from .sqlalchemy_ import SQLAlchemyDB
+from .sqlalchemy_ import SQLAlchemyDB, SQLAlchemyExplorer
 
-__all__ = ["SQLAlchemyDB"]
+__all__ = ["SQLAlchemyDB", "SQLAlchemyExplorer"]
