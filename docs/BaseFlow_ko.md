@@ -129,6 +129,58 @@ for e in hook.events:
 
 ---
 
+## SequentialFlow의 알려진 제한
+
+`SequentialFlow`는 `value = step(value)` 단일 값 전달 방식으로 동작합니다.
+이 설계는 단순한 변환 체인에는 적합하지만, NL2SQL 파이프라인에서 다음 한계가 있습니다.
+
+### 문제 1: 컨텍스트 소실
+
+파이프라인이 진행되면서 초기 입력(`query`)이 중간 단계 출력으로 대체되어 사라집니다.
+
+```python
+flow.run("주문 내역 확인")
+↓
+retriever("주문 내역 확인")  →  list[CatalogEntry]
+↓
+generator(list[CatalogEntry])  # ← 여기서 original query가 없음
+↓
+TypeError 또는 잘못된 결과
+```
+
+### 문제 2: 다중 인자 컴포넌트와 호환 불가
+
+`SQLGenerator.run(query, schemas)`처럼 2개 이상의 인자를 받는 컴포넌트는
+`SequentialFlow`의 단일 값 전달로 연결할 수 없습니다.
+
+```python
+# ❌ 동작하지 않음 — generator는 (query, schemas) 2개 인자가 필요
+flow = SequentialFlow(steps=[retriever, generator, executor])
+flow.run("주문 내역")  # TypeError: run() missing 1 required positional argument: 'schemas'
+```
+
+### 해결 방법
+
+NL2SQL 파이프라인은 `SequentialFlow` 대신 **전용 Flow**를 사용하세요.
+전용 Flow는 내부에서 다중 인자 와이어링을 올바르게 처리합니다.
+
+```python
+# ✅ KeywordRetriever 기반
+pipeline = BaselineNL2SQL(catalog=catalog, llm=llm, db=db)
+
+# ✅ Keyword + Vector 기반
+pipeline = HybridNL2SQL(catalog=catalog, llm=llm, db=db, embedding=embedding)
+
+# ✅ Gate + 프로파일링 + 보강 포함 풀 파이프라인
+pipeline = EnrichedNL2SQL(catalog=catalog, llm=llm, db=db, embedding=embedding)
+
+rows = pipeline.run("주문 내역")
+```
+
+`SequentialFlow`는 단일 값 변환 체인(예: 텍스트 전처리, 단계별 필터링)에 적합합니다.
+
+---
+
 ## FAQ
 
 ### Q. BaseFlow가 필수인가?

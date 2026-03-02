@@ -26,6 +26,7 @@ python scripts/setup_sample_docs.py
 ### Flows
 - `BaselineNL2SQL`: BM25 `KeywordRetriever` 기반 기본 파이프라인
 - `HybridNL2SQL`: BM25 + Vector `HybridRetriever` 기반 파이프라인
+- `EnrichedNL2SQL`: Gate + 프로파일링 + 보강 + HybridRetriever 기반 풀 파이프라인
 
 ### Retrievers
 - `KeywordRetriever`
@@ -33,8 +34,8 @@ python scripts/setup_sample_docs.py
 - `HybridRetriever`
 
 ### Vector / Embedding (v2 내장)
-- Embedding: `OpenAIEmbedding` (내장 1개)
-- Vector store: `InMemoryVectorStore` (내장 1개)
+- Embedding: `OpenAIEmbedding`, `AzureOpenAIEmbedding`, `GeminiEmbedding`, `BedrockEmbedding`, `OllamaEmbedding`, `HuggingFaceEmbedding` (6개)
+- Vector store: `InMemoryVectorStore`, `FAISSVectorStore`, `PGVectorStore` (3개)
 
 ### Chunking / Loading
 - Chunkers: `CatalogChunker`, `RecursiveCharacterChunker`, `SemanticChunker`
@@ -240,8 +241,7 @@ PDF는 페이지 단위로 `TextDocument`를 생성합니다:
 
 ## 4) 중요한 현재 제약
 
-- v2 내장 VectorStore는 현재 `InMemoryVectorStore`만 공식 제공됩니다.
-- `BaselineNL2SQL`은 현재 `retriever` 주입 파라미터를 받지 않습니다.
+- `BaselineNL2SQL`은 `retriever` 주입 파라미터를 받지 않습니다.
   - 벡터 기반 파이프라인은 `HybridNL2SQL` 또는 수동 조합을 사용하세요.
 - `VectorRetriever` 결과의 `context`는 현재 `list[str]`입니다.
   - 문서 출처 구조화가 필요하면 `metadata`를 별도 조회하거나 커스텀 래퍼를 두세요.

@@ -11,9 +11,9 @@
 2. [설치 — 임베딩 패키지 추가하기](#2-설치--임베딩-패키지-추가하기)
 3. [가장 빠른 시작 — from_sources()](#3-가장-빠른-시작--from_sources)
 4. [비즈니스 문서를 컨텍스트로 추가하기](#4-비즈니스-문서를-컨텍스트로-추가하기)
-5. [파이프라인에 연결하기 — BaselineNL2SQL](#5-파이프라인에-연결하기--baselinenl2sql)
+5. [파이프라인에 연결하기](#5-파이프라인에-연결하기)
 6. [인덱스 점진적으로 추가하기 — add()](#6-인덱스-점진적으로-추가하기--add)
-7. [고급 — IndexBuilder 직접 사용하기](#7-고급--indexbuilder-직접-사용하기)
+7. [고급 — 명시적 파이프라인 (from_chunks)](#7-고급--명시적-파이프라인-from_chunks)
 8. [고급 — 청커 교체하기](#8-고급--청커-교체하기)
 9. [점수 임계값과 top_n 조정](#9-점수-임계값과-top_n-조정)
 10. [전체 체크리스트 — API 키 없이 실행](#10-전체-체크리스트--api-키-없이-실행)
@@ -93,7 +93,7 @@ print(result.context)
 
 `from_sources()`는 내부적으로 다음을 자동으로 처리합니다:
 - `InMemoryVectorStore` 생성 (외부 DB 불필요)
-- `IndexBuilder`로 카탈로그 청킹 → 임베딩 → 저장
+- 카탈로그 청킹 → 임베딩 → 저장 (`from_chunks()` 내부 호출)
 - 검색 준비 완료된 `VectorRetriever` 반환
 
 ---
@@ -140,39 +140,49 @@ print(result.context)   # 관련 문서 텍스트 — LLM 프롬프트에 포함
 
 ---
 
-## 5. 파이프라인에 연결하기 — BaselineNL2SQL
+## 5. 파이프라인에 연결하기
 
-`BaselineNL2SQL`의 `retriever=` 파라미터로 `VectorRetriever`를 주입합니다.
-기본 `KeywordRetriever`를 대체합니다.
+벡터 기반 검색을 사용하려면 `HybridNL2SQL`을 사용합니다.
+(`BaselineNL2SQL`은 `KeywordRetriever`만 내부적으로 사용하며, retriever 주입 파라미터를 받지 않습니다.)
 
 ```python
-from lang2sql import BaselineNL2SQL, VectorRetriever
+from lang2sql import HybridNL2SQL
 from lang2sql.integrations.llm import AnthropicLLM
 from lang2sql.integrations.db import SQLAlchemyDB
 from lang2sql.integrations.embedding import OpenAIEmbedding
 
-# 1. VectorRetriever 준비
-retriever = VectorRetriever.from_sources(
+pipeline = HybridNL2SQL(
     catalog=CATALOG,
-    documents=DOCS,
-    embedding=OpenAIEmbedding(),
-)
-
-# 2. 파이프라인에 주입
-pipeline = BaselineNL2SQL(
-    catalog=CATALOG,                              # KeywordRetriever 기본값용 (retriever 주입 시 무시됨)
     llm=AnthropicLLM(model="claude-sonnet-4-6"),
     db=SQLAlchemyDB("sqlite:///sample.db"),
+    embedding=OpenAIEmbedding(),
+    documents=DOCS,
     db_dialect="sqlite",
-    retriever=retriever,                          # ← VectorRetriever 주입
 )
 
-result = pipeline.run("취소 제외한 이번 달 매출 합계")
-print(result)
+rows = pipeline.run("취소 제외한 이번 달 매출 합계")
+print(rows)
 ```
 
-> `retriever=`가 주어지면 `catalog=`는 내부적으로 사용되지 않습니다.
-> 하지만 API 일관성을 위해 `catalog=`를 함께 전달하는 것을 권장합니다.
+또는 `VectorRetriever`를 직접 조합해 수동 파이프라인을 구성할 수 있습니다:
+
+```python
+from lang2sql import VectorRetriever, SQLGenerator, SQLExecutor
+from lang2sql.integrations.embedding import OpenAIEmbedding
+from lang2sql.integrations.llm import AnthropicLLM
+from lang2sql.integrations.db import SQLAlchemyDB
+
+retriever = VectorRetriever.from_sources(
+    catalog=CATALOG, documents=DOCS, embedding=OpenAIEmbedding(),
+)
+generator = SQLGenerator(llm=AnthropicLLM(model="claude-sonnet-4-6"), db_dialect="sqlite")
+executor = SQLExecutor(db=SQLAlchemyDB("sqlite:///sample.db"))
+
+query = "취소 제외한 이번 달 매출 합계"
+result = retriever(query)
+sql = generator(query, result.schemas, context=result.context)
+rows = executor(sql)
+```
 
 ---
 
@@ -197,48 +207,53 @@ NEW_DOCS: list[TextDocument] = [
     },
 ]
 
-retriever.add(NEW_DOCS)  # 기존 카탈로그 인덱스 유지 + 새 문서 추가
+retriever.add(RecursiveCharacterChunker().split(NEW_DOCS))  # pre-split 후 전달
 
 result = retriever("VIP 고객 할인 금액 계산")
 print(result.context)
 # ['할인 정책: VIP 고객(gold 등급)에게는...']
 ```
 
-> `add()`는 `from_sources()`로 만든 retriever에서만 사용할 수 있습니다.
-> 직접 생성한 경우엔 `IndexBuilder.run()`을 호출하세요 (섹션 7 참고).
+> **주의**: `add()`는 `list[IndexedChunk]`만 받습니다.
+> `TextDocument`를 직접 전달하면 오류가 발생합니다.
+>
+> ```python
+> # ❌ 동작 안 함
+> retriever.add(NEW_DOCS)
+>
+> # ✅ 올바른 방법
+> retriever.add(RecursiveCharacterChunker().split(NEW_DOCS))
+> ```
 
 ---
 
-## 7. 고급 — IndexBuilder 직접 사용하기
+## 7. 고급 — 명시적 파이프라인 (from_chunks)
 
-여러 소스를 단계별로 인덱싱하거나, 커스텀 벡터 저장소를 쓰고 싶을 때
-`IndexBuilder`를 직접 조작합니다.
+영속 벡터스토어(FAISS, pgvector)를 사용하거나,
+카탈로그와 문서를 따로 스케줄링하고 싶을 때 `from_chunks()`를 직접 사용합니다.
 
 ```python
-from lang2sql import VectorRetriever, IndexBuilder
-from lang2sql.integrations.vectorstore import InMemoryVectorStore
+from lang2sql import CatalogChunker, RecursiveCharacterChunker, VectorRetriever
 from lang2sql.integrations.embedding import OpenAIEmbedding
+from lang2sql.integrations.vectorstore import FAISSVectorStore
 
 embedding = OpenAIEmbedding()
-store = InMemoryVectorStore()
-registry: dict = {}  # IndexBuilder와 VectorRetriever가 공유하는 저장소
 
-builder = IndexBuilder(
+# (1) 청킹 — 각 소스를 명시적으로 split
+catalog_chunks = CatalogChunker().split(CATALOG)
+doc_chunks = RecursiveCharacterChunker(chunk_size=500).split(DOCS)
+all_chunks = catalog_chunks + doc_chunks
+
+# (2) 영속 벡터스토어 지정
+store = FAISSVectorStore(index_path="./index/catalog.faiss")
+
+# (3) Retriever 생성 (embed + store 자동)
+retriever = VectorRetriever.from_chunks(
+    all_chunks,
     embedding=embedding,
     vectorstore=store,
-    registry=registry,
 )
-
-retriever = VectorRetriever(
-    vectorstore=store,
-    embedding=embedding,
-    registry=registry,  # 같은 registry 공유
-)
-
-# 단계별 인덱싱 — 기존 데이터 유지됨
-builder.run(CATALOG)           # 카탈로그 인덱싱
-builder.run(DOCS)              # 문서 인덱싱 (카탈로그 유지)
-builder.run(NEW_DOCS)          # 추가 문서 (기존 모두 유지)
+store.save()  # 디스크에 저장
 
 result = retriever("매출 정의")
 ```
@@ -247,6 +262,7 @@ result = retriever("매출 정의")
 - 벡터 저장소를 외부 DB(FAISS 파일, pgvector)로 교체할 때
 - 인덱스를 디스크에 저장하고 재사용할 때
 - 카탈로그와 문서를 따로 스케줄링할 때
+- 청킹 중간 결과를 검사하거나 필터링할 때
 
 ---
 
@@ -277,7 +293,7 @@ retriever = VectorRetriever.from_sources(
     catalog=CATALOG,
     documents=DOCS,
     embedding=embedding,
-    document_chunker=SemanticChunker(embedding=embedding),  # ← 의미 기반 청킹
+    splitter=SemanticChunker(embedding=embedding),  # ← 의미 기반 청킹
 )
 ```
 
@@ -315,7 +331,7 @@ retriever = VectorRetriever.from_sources(
     catalog=CATALOG,
     documents=DOCS,
     embedding=OpenAIEmbedding(),
-    document_chunker=LangChainChunkerAdapter(lc_splitter),
+    splitter=LangChainChunkerAdapter(lc_splitter),
 )
 ```
 
@@ -423,6 +439,8 @@ assert len(result2.context) >= 1
 
 # ── 4. add() — 점진적 인덱싱 ─────────────────────────────────────────────────
 
+from lang2sql import RecursiveCharacterChunker
+
 initial_count = len(retriever._registry)
 
 NEW_DOC: list[TextDocument] = [
@@ -434,7 +452,7 @@ NEW_DOC: list[TextDocument] = [
     },
 ]
 
-retriever.add(NEW_DOC)
+retriever.add(RecursiveCharacterChunker().split(NEW_DOC))  # pre-split 필수
 
 print("\n✓ add() — 점진적 인덱싱")
 print(f"  registry 크기: {initial_count} → {len(retriever._registry)}")
@@ -443,26 +461,15 @@ assert len(retriever._registry) > initial_count
 
 # ── 5. score_threshold 필터링 ─────────────────────────────────────────────────
 
+from lang2sql import CatalogChunker
 from lang2sql.integrations.vectorstore import InMemoryVectorStore
 
-store = InMemoryVectorStore()
-registry: dict = {}
-
-from lang2sql import IndexBuilder
-
-builder = IndexBuilder(
+catalog_chunks = CatalogChunker().split(CATALOG)
+strict_retriever = VectorRetriever.from_chunks(
+    catalog_chunks,
     embedding=FakeEmbedding(),
-    vectorstore=store,
-    registry=registry,
-)
-builder.run(CATALOG)
-
-strict_retriever = VectorRetriever(
-    vectorstore=store,
-    embedding=FakeEmbedding(),
-    registry=registry,
     # FakeEmbedding은 항상 동일 벡터 반환 → 코사인 유사도 = 1.0
-    # threshold=1.0 이면 1.0 <= 1.0 조건 충족 → 전부 필터링됨
+    # score_threshold=1.0 이면 1.0 <= 1.0 조건 충족 → 전부 필터링됨
     score_threshold=1.0,
 )
 
@@ -472,65 +479,29 @@ print(f"  schemas: {result3.schemas}  (빈 리스트 예상)")
 assert result3.schemas == []
 
 
-# ── 6. IndexBuilder 직접 사용 ─────────────────────────────────────────────────
+# ── 6. from_chunks — 카탈로그 + 문서 병합 ────────────────────────────────────
 
-store2 = InMemoryVectorStore()
-registry2: dict = {}
-builder2 = IndexBuilder(
+catalog_chunks2 = CatalogChunker().split(CATALOG)
+doc_chunks2 = RecursiveCharacterChunker().split(DOCS)
+all_chunks2 = catalog_chunks2 + doc_chunks2
+
+retriever3 = VectorRetriever.from_chunks(
+    all_chunks2,
     embedding=FakeEmbedding(),
-    vectorstore=store2,
-    registry=registry2,
-)
-retriever3 = VectorRetriever(
-    vectorstore=store2,
-    embedding=FakeEmbedding(),
-    registry=registry2,
 )
 
-builder2.run(CATALOG)
-catalog_ids = set(registry2.keys())
-
-builder2.run(DOCS)  # 카탈로그가 유지되는지 확인
+catalog_ids = {c["chunk_id"] for c in catalog_chunks2}
 for chunk_id in catalog_ids:
-    assert chunk_id in registry2, f"카탈로그 청크 '{chunk_id}' 유실!"
+    assert chunk_id in retriever3._registry, f"카탈로그 청크 '{chunk_id}' 유실!"
 
-print("\n✓ IndexBuilder — 카탈로그 유지 확인")
-print(f"  카탈로그 청크 수: {len(catalog_ids)}  (모두 유지됨)")
-
-
-# ── 7. BaselineNL2SQL 파이프라인 주입 ────────────────────────────────────────
-
-class FakeLLM:
-    def invoke(self, messages):
-        return "```sql\nSELECT COUNT(*) FROM orders\n```"
-
-class FakeDB:
-    def execute(self, sql):
-        return [{"cnt": 44}]
-
-from lang2sql import BaselineNL2SQL
-
-pipeline = BaselineNL2SQL(
-    catalog=CATALOG,
-    llm=FakeLLM(),
-    db=FakeDB(),
-    retriever=VectorRetriever.from_sources(
-        catalog=CATALOG,
-        embedding=FakeEmbedding(),
-    ),
-)
-
-result4 = pipeline.run("주문 건수")
-print("\n✓ BaselineNL2SQL — VectorRetriever 주입")
-print(f"  결과: {result4}")
-assert result4 == [{"cnt": 44}]
+print("\n✓ from_chunks — 카탈로그 + 문서 병합 확인")
+print(f"  카탈로그 청크 수: {len(catalog_ids)}  (모두 존재)")
 
 
-# ── 8. public import 확인 ────────────────────────────────────────────────────
+# ── 7. public import 확인 ────────────────────────────────────────────────────
 
 from lang2sql import (
     VectorRetriever,
-    IndexBuilder,
     CatalogChunker,
     RecursiveCharacterChunker,
     DocumentChunkerPort,
@@ -554,17 +525,18 @@ print("=" * 50)
 ```
 [CATALOG / DOCS]
       │
+      ▼  chunker.split()
+  CatalogChunker             — 테이블 헤더 + 컬럼 그룹 분할
+  RecursiveCharacterChunker  — 문서 분할 (또는 SemanticChunker)
+      │
+      ▼  list[IndexedChunk]
+  VectorRetriever.from_chunks() / from_sources()
+      │  embed_texts()
       ▼
-  IndexBuilder.run()
-  ├── CatalogChunker         — 테이블 헤더 + 컬럼 그룹 분할
-  └── RecursiveCharacterChunker / SemanticChunker  — 문서 분할
-      │
-      ▼  embed_texts()
-  EmbeddingPort              — OpenAIEmbedding 등
-      │
-      ▼  upsert()
-  VectorStorePort            — InMemoryVectorStore (기본)
-      + registry dict 공유
+  EmbeddingPort              — OpenAIEmbedding 등 (6개)
+      │  upsert()
+      ▼
+  VectorStorePort            — InMemoryVectorStore / FAISSVectorStore / PGVectorStore
       │
       ▼
   VectorRetriever.__call__(query)
