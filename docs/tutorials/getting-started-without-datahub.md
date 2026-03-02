@@ -122,19 +122,53 @@ print(f"FAISS index saved to: {OUTPUT_DIR}/catalog.faiss")
 
 ### 4) 실행
 
+v2 CLI는 외부 벡터 인덱스 경로를 인수로 받지 않습니다.
+앞서 생성한 FAISS 인덱스를 활용하려면 Python API로 파이프라인을 직접 구성합니다.
+
+```python
+# run_query.py
+import os
+from dotenv import load_dotenv
+from lang2sql import CatalogChunker, VectorRetriever
+from lang2sql.integrations.db import SQLAlchemyDB
+from lang2sql.integrations.embedding import OpenAIEmbedding
+from lang2sql.integrations.llm import OpenAILLM
+from lang2sql.integrations.vectorstore import FAISSVectorStore
+from lang2sql.flows.hybrid import HybridNL2SQL
+
+load_dotenv()
+
+INDEX_DIR = "./dev/table_info_db"
+embedding = OpenAIEmbedding(
+    model=os.getenv("OPEN_AI_EMBEDDING_MODEL", "text-embedding-3-large"),
+    api_key=os.getenv("OPEN_AI_KEY"),
+)
+
+# FAISS 인덱스 로드 후 파이프라인 구성
+store = FAISSVectorStore.load(f"{INDEX_DIR}/catalog.faiss")
+
+pipeline = HybridNL2SQL(
+    catalog=[],          # FAISS에 이미 인덱싱돼 있으므로 빈 리스트
+    llm=OpenAILLM(model=os.getenv("OPEN_AI_LLM_MODEL", "gpt-4o"), api_key=os.getenv("OPEN_AI_KEY")),
+    db=SQLAlchemyDB(os.getenv("DB_URL", "sqlite:///sample.db")),
+    embedding=embedding,
+    db_dialect=os.getenv("DB_TYPE", "sqlite"),
+)
+
+rows = pipeline.run("주문 수를 집계하는 SQL을 만들어줘")
+print(rows)
+```
+
+Streamlit UI:
+
 ```bash
-# Streamlit UI
 lang2sql run-streamlit
+```
 
-# CLI 예시 (FAISS 인덱스 사용)
-lang2sql query "주문 수를 집계하는 SQL을 만들어줘" \
-  --vectordb-type faiss \
-  --vectordb-location ./dev/table_info_db
+CLI (카탈로그 없이 baseline만 가능):
 
-# CLI 예시 (pgvector)
-lang2sql query "주문 수를 집계하는 SQL을 만들어줘" \
-  --vectordb-type pgvector \
-  --vectordb-location "postgresql://pgvector:pgvector@localhost:5432/postgres"
+```bash
+lang2sql query "주문 수를 집계해줘" --flow baseline --dialect sqlite
 ```
 
 ### 5) (선택) pgvector로 적재하기
@@ -229,4 +263,3 @@ VectorRetriever.from_chunks(
 print(f"pgvector collection populated: {TABLE}")
 ```
 
-주의: FAISS 디렉토리 또는 pgvector 컬렉션이 없으면 현재 코드는 DataHub에서 메타데이터를 가져와 인덱스를 생성하려고 시도합니다. DataHub를 사용하지 않는 경우 위 절차로 사전에 VectorDB를 만들어 두세요.

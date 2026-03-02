@@ -32,7 +32,17 @@ class SQLAlchemyDB(DBPort):
 
 
 _WRITE_PREFIXES = frozenset(
-    {"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "REPLACE", "MERGE"}
+    {
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "DROP",
+        "ALTER",
+        "CREATE",
+        "TRUNCATE",
+        "REPLACE",
+        "MERGE",
+    }
 )
 
 
@@ -51,7 +61,9 @@ class SQLAlchemyExplorer:
         self._schema = schema
 
     @classmethod
-    def from_engine(cls, engine: "Engine", *, schema: str | None = None) -> "SQLAlchemyExplorer":
+    def from_engine(
+        cls, engine: "Engine", *, schema: str | None = None
+    ) -> "SQLAlchemyExplorer":
         """기존 engine 공유용. 연결 풀 중복 방지."""
         instance = cls.__new__(cls)
         instance._engine = engine
@@ -86,7 +98,9 @@ class SQLAlchemyExplorer:
         t = SATable(table, metadata, autoload_with=self._engine, schema=resolved_schema)
         return str(CreateTable(t).compile(self._engine))
 
-    def sample_data(self, table: str, *, limit: int = 5, schema: str | None = None) -> list[dict]:
+    def sample_data(
+        self, table: str, *, limit: int = 5, schema: str | None = None
+    ) -> list[dict]:
         """실제 샘플 데이터 반환.
 
         f-string SQL 금지 — SQLAlchemy ORM select()로 identifier quoting 위임.

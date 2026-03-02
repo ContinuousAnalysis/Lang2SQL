@@ -111,16 +111,16 @@ class MemoryHook:
 
 #### MemoryHook 사용 예시
 
-```py
+```python
 from lang2sql.core.hooks import MemoryHook
-from lang2sql.flows.baseline import BaselineFlow
+from lang2sql.flows.baseline import SequentialFlow
 
 hook = MemoryHook()
-flow = BaselineFlow(steps=[...], hook=hook)
+flow = SequentialFlow(steps=[...], hook=hook)
 
-out = flow.run_query("지난달 매출")
+out = flow.run("지난달 매출")
 
-for e in hook.events:
+for e in hook.snapshot():
     print(e.name, e.phase, e.component, e.duration_ms, e.error)
 ```
 

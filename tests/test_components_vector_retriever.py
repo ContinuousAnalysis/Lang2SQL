@@ -535,7 +535,9 @@ def test_save_and_load_returns_same_results(tmp_path):
 
     store = FAISSVectorStore(index_path=path + ".faiss")
     chunks = CatalogChunker().split(CATALOG)
-    original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
+    original = VectorRetriever.from_chunks(
+        chunks, embedding=embedding, vectorstore=store
+    )
     original.save(path)
 
     loaded_store = FAISSVectorStore.load(path)
@@ -555,7 +557,9 @@ def test_load_registry_intact(tmp_path):
 
     store = FAISSVectorStore(index_path=path + ".faiss")
     chunks = CatalogChunker().split(CATALOG)
-    original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
+    original = VectorRetriever.from_chunks(
+        chunks, embedding=embedding, vectorstore=store
+    )
     original.save(path)
 
     loaded_store = FAISSVectorStore.load(path)
@@ -571,7 +575,9 @@ def test_save_raises_for_inmemory():
     """InMemoryVectorStore는 save()를 지원하지 않아 NotImplementedError가 발생한다."""
     embedding = FakeEmbeddingFAISS()
     chunks = CatalogChunker().split(CATALOG)
-    retriever = VectorRetriever.from_chunks(chunks, embedding=embedding)  # InMemory 기본값
+    retriever = VectorRetriever.from_chunks(
+        chunks, embedding=embedding
+    )  # InMemory 기본값
 
     with pytest.raises(NotImplementedError, match="does not support save"):
         retriever.save("/tmp/should_not_exist")

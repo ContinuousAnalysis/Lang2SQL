@@ -1,4 +1,9 @@
-from .factory import build_db_from_env, build_embedding_from_env, build_explorer_from_url, build_llm_from_env
+from .factory import (
+    build_db_from_env,
+    build_embedding_from_env,
+    build_explorer_from_url,
+    build_llm_from_env,
+)
 from .components.enrichment.context_enricher import ContextEnricher
 from .components.enrichment.question_profiler import QuestionProfiler
 from .components.execution.sql_executor import SQLExecutor
@@ -50,6 +55,7 @@ from .integrations.llm.bedrock_ import BedrockLLM
 from .integrations.llm.gemini_ import GeminiLLM
 from .integrations.llm.huggingface_ import HuggingFaceLLM
 from .integrations.llm.ollama_ import OllamaLLM
+
 __all__ = [
     # Data types
     "CatalogEntry",
@@ -132,8 +138,8 @@ __all__ = [
 # ---------------------------------------------------------------------------
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DataHubCatalogLoader": (".integrations.catalog.datahub_", "DataHubCatalogLoader"),
-    "FAISSVectorStore":     (".integrations.vectorstore.faiss_", "FAISSVectorStore"),
-    "PGVectorStore":        (".integrations.vectorstore.pgvector_", "PGVectorStore"),
+    "FAISSVectorStore": (".integrations.vectorstore.faiss_", "FAISSVectorStore"),
+    "PGVectorStore": (".integrations.vectorstore.pgvector_", "PGVectorStore"),
 }
 
 
@@ -141,6 +147,7 @@ def __getattr__(name: str):
     if name in _LAZY_IMPORTS:
         module_path, attr = _LAZY_IMPORTS[name]
         import importlib
+
         obj = getattr(importlib.import_module(module_path, package=__name__), attr)
         # Cache in module globals so subsequent accesses skip __getattr__
         globals()[name] = obj

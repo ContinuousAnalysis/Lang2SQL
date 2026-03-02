@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import create_engine, text
 
-
 # ---------------------------------------------------------------------------
 # Fixture: SQLite in-memory DB with FK schema
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def engine():
@@ -29,7 +29,9 @@ def engine():
                 status TEXT DEFAULT 'pending'
             )
         """))
-        conn.execute(text("INSERT INTO customers VALUES (1, 'Alice', 'alice@example.com')"))
+        conn.execute(
+            text("INSERT INTO customers VALUES (1, 'Alice', 'alice@example.com')")
+        )
         conn.execute(text("INSERT INTO customers VALUES (2, 'Bob', 'bob@example.com')"))
         conn.execute(text("INSERT INTO orders VALUES (1, 1, 99.9, 'shipped')"))
         conn.execute(text("INSERT INTO orders VALUES (2, 2, 42.0, 'pending')"))
@@ -47,6 +49,7 @@ def explorer(engine):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_list_tables(explorer):
     tables = explorer.list_tables()
@@ -98,7 +101,9 @@ def test_execute_read_only_select(explorer):
 
 def test_execute_read_only_rejects_insert(explorer):
     with pytest.raises(ValueError, match="Write operations not allowed"):
-        explorer.execute_read_only("INSERT INTO customers VALUES (3, 'Eve', 'eve@x.com')")
+        explorer.execute_read_only(
+            "INSERT INTO customers VALUES (3, 'Eve', 'eve@x.com')"
+        )
 
 
 def test_execute_read_only_rejects_drop(explorer):
