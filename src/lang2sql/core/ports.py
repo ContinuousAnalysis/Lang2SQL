@@ -63,3 +63,21 @@ class CatalogLoaderPort(Protocol):
     """Abstracts catalog loading from external sources (DataHub, file, database, etc.)."""
 
     def load(self) -> list[CatalogEntry]: ...
+
+
+class DBExplorerPort(Protocol):
+    """DB 에이전틱 탐색 인터페이스. Agent가 DB를 직접 탐색할 때 사용.
+
+    메서드 선정 원칙:
+    - DDL에 이미 있는 정보(컬럼 목록, FK, PK)는 별도 메서드 없음
+    - 통계/집계는 execute_read_only()로 직접 질의
+    - 관계 추론은 LLM에 위임 (휴리스틱 제거)
+    """
+
+    def list_tables(self, schema: str | None = None) -> list[str]: ...
+
+    def get_ddl(self, table: str, *, schema: str | None = None) -> str: ...
+
+    def sample_data(self, table: str, *, limit: int = 5, schema: str | None = None) -> list[dict]: ...
+
+    def execute_read_only(self, sql: str) -> list[dict]: ...
