@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-from .core.ports import DBPort, EmbeddingPort, LLMPort
+from .core.ports import DBExplorerPort, DBPort, EmbeddingPort, LLMPort
 
 
 def build_llm_from_env() -> LLMPort:
@@ -154,6 +154,13 @@ def build_embedding_from_env() -> EmbeddingPort:
         f"Unknown EMBEDDING_PROVIDER: {provider!r}. "
         "Valid values: openai, azure, ollama, bedrock, gemini, huggingface"
     )
+
+
+def build_explorer_from_url(url: str, *, schema: str | None = None) -> "DBExplorerPort":
+    """DB URL로 SQLAlchemyExplorer 생성."""
+    from .integrations.db.sqlalchemy_ import SQLAlchemyExplorer
+
+    return SQLAlchemyExplorer(url, schema=schema)
 
 
 def build_db_from_env(database_env: str = "") -> DBPort:
