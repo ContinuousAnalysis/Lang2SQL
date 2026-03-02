@@ -538,7 +538,8 @@ def test_save_and_load_returns_same_results(tmp_path):
     original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
     original.save(path)
 
-    loaded = VectorRetriever.load(path, embedding=embedding)
+    loaded_store = FAISSVectorStore.load(path)
+    loaded = VectorRetriever.load(path, vectorstore=loaded_store, embedding=embedding)
     result = loaded.run("주문 정보")
 
     assert len(result.schemas) > 0
@@ -557,7 +558,8 @@ def test_load_registry_intact(tmp_path):
     original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
     original.save(path)
 
-    loaded = VectorRetriever.load(path, embedding=embedding)
+    loaded_store = FAISSVectorStore.load(path)
+    loaded = VectorRetriever.load(path, vectorstore=loaded_store, embedding=embedding)
 
     assert set(loaded._registry.keys()) == set(original._registry.keys())
     for chunk_id, chunk in original._registry.items():

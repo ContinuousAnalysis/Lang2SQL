@@ -200,36 +200,39 @@ class VectorRetriever(BaseComponent):
         cls,
         path: str,
         *,
+        vectorstore: VectorStorePort,
         embedding: EmbeddingPort,
         top_n: int = 5,
         score_threshold: float = 0.0,
         name: Optional[str] = None,
         hook: Optional[TraceHook] = None,
     ) -> "VectorRetriever":
-        """저장된 인덱스와 registry를 복원해 VectorRetriever를 반환.
+        """저장된 registry를 복원해 VectorRetriever를 반환.
 
-        save()로 저장한 path를 그대로 전달한다.
-        embedding은 쿼리 시 embed_query()에 사용되므로 반드시 전달해야 한다.
+        벡터 인덱스 복원은 호출자가 직접 수행한 뒤 vectorstore로 전달한다.
+        이렇게 하면 VectorRetriever가 특정 store 구현체에 의존하지 않는다.
 
         Args:
-            path:            save() 시 사용한 경로.
-            embedding:       EmbeddingPort 구현체.
-            top_n:           최대 반환 스키마/컨텍스트 수. 기본 5.
+            path:        save() 시 사용한 경로 (registry 파일 위치 기준).
+            vectorstore: 이미 로드된 VectorStorePort 구현체.
+            embedding:   EmbeddingPort 구현체.
+            top_n:       최대 반환 스키마/컨텍스트 수. 기본 5.
             score_threshold: 이 점수 이하는 결과에서 제외. 기본 0.0.
+
+        Example:
+            store = FAISSVectorStore.load(path)
+            retriever = VectorRetriever.load(path, vectorstore=store, embedding=emb)
         """
         import json
         import pathlib
-
-        from ...integrations.vectorstore.faiss_ import FAISSVectorStore
 
         registry_path = pathlib.Path(path + ".registry")
         if not registry_path.exists():
             raise FileNotFoundError(f"Registry file not found: {registry_path}")
 
-        store = FAISSVectorStore.load(path)
         registry = json.loads(registry_path.read_text(encoding="utf-8"))
         return cls(
-            vectorstore=store,
+            vectorstore=vectorstore,
             embedding=embedding,
             registry=registry,
             top_n=top_n,
