@@ -20,6 +20,7 @@
 5-1. 샘플 문서 자동 생성
 6. 가장 쉬운 로컬 스모크 테스트 (API 키 없이)
 7. BaselineNL2SQL 기본 사용 (KeywordRetriever)
+7-1. DB 탐색: SQLAlchemyExplorer
 8. 실제 LLM 연결 (OpenAI / Anthropic)
 9. VectorRetriever 기초 (빠른 시작)
 10. 문서 파싱: MarkdownLoader / PlainTextLoader / DirectoryLoader / PDFLoader
@@ -229,6 +230,99 @@ print(rows)
 
 - 현재 `BaselineNL2SQL`은 키워드 기반 리트리버를 내부에서 사용합니다.
 - 벡터 검색 기반 플로우는 아래 `HybridNL2SQL` 또는 수동 조합을 사용하세요.
+
+---
+
+## 7-1) DB 탐색: SQLAlchemyExplorer
+
+LLM에게 넘길 스키마 정보가 필요하거나, 처음 보는 DB를 손으로 살펴볼 때 사용합니다.
+카탈로그를 미리 구축하지 않아도 DDL + 샘플 데이터를 바로 꺼내볼 수 있습니다.
+
+### 기본 사용
+
+```python
+from lang2sql import build_explorer_from_url
+
+exp = build_explorer_from_url("sqlite:///sample.db")
+
+# 1) 어떤 테이블이 있는지
+print(exp.list_tables())
+# ['customers', 'orders', ...]
+
+# 2) 테이블 DDL — CREATE TABLE 원문
+print(exp.get_ddl("orders"))
+# CREATE TABLE orders (
+#   id INTEGER PRIMARY KEY,
+#   customer_id INTEGER NOT NULL REFERENCES customers(id),
+#   amount REAL,
+#   status TEXT DEFAULT 'pending'
+# )
+
+# 3) 실제 샘플 데이터 (기본 5행)
+print(exp.sample_data("orders"))
+# [{'id': 1, 'customer_id': 1, 'amount': 99.9, 'status': 'shipped'}, ...]
+
+# 4) 커스텀 읽기 전용 질의
+print(exp.execute_read_only("SELECT status, COUNT(*) AS cnt FROM orders GROUP BY status"))
+# [{'status': 'pending', 'cnt': 3}, {'status': 'shipped', 'cnt': 2}]
+```
+
+### 전체 테이블 한 번에 둘러보기
+
+```python
+from lang2sql import build_explorer_from_url
+
+exp = build_explorer_from_url("sqlite:///sample.db")
+
+for table in exp.list_tables():
+    print(f"\n=== {table} ===")
+    print(exp.get_ddl(table))
+    rows = exp.sample_data(table, limit=2)
+    print("샘플:", rows)
+```
+
+### PostgreSQL / MySQL 연결
+
+URL만 바꾸면 됩니다.
+
+```python
+from lang2sql import build_explorer_from_url
+
+# PostgreSQL
+exp = build_explorer_from_url("postgresql://user:password@localhost:5432/mydb")
+
+# MySQL
+exp = build_explorer_from_url("mysql+pymysql://user:password@localhost:3306/mydb")
+
+# schema 지정 (schema 파라미터)
+exp = build_explorer_from_url("postgresql://user:pass@host/db", schema="analytics")
+print(exp.list_tables())  # analytics 스키마 테이블만
+```
+
+### 기존 SQLAlchemyDB engine 재사용
+
+연결 풀을 따로 만들지 않고 공유할 수 있습니다.
+
+```python
+from lang2sql.integrations.db import SQLAlchemyDB, SQLAlchemyExplorer
+
+db = SQLAlchemyDB("sqlite:///sample.db")
+exp = SQLAlchemyExplorer.from_engine(db._engine)
+
+# db는 SQL 실행, exp는 탐색 — 같은 연결 풀 공유
+rows = db.execute("SELECT COUNT(*) AS cnt FROM orders")
+ddl = exp.get_ddl("orders")
+```
+
+### 쓰기 구문은 거부됩니다
+
+```python
+exp.execute_read_only("DROP TABLE orders")
+# ValueError: Write operations not allowed: 'DROP TABLE orders'
+
+exp.execute_read_only("INSERT INTO orders VALUES (99, 1, 0, 'test')")
+# ValueError: Write operations not allowed: 'INSERT INTO orders ...'
+```
 
 ---
 
