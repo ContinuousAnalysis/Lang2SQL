@@ -168,6 +168,78 @@ class VectorRetriever(BaseComponent):
         self._vectorstore.upsert(ids, vectors)
         self._registry.update({c["chunk_id"]: c for c in chunks})
 
+    # ── Persistence ──────────────────────────────────────────────────
+
+    def save(self, path: str) -> None:
+        """벡터 인덱스와 registry를 path에 저장.
+
+        FAISSVectorStore처럼 save()를 지원하는 store에서만 동작한다.
+        InMemoryVectorStore 등 save()가 없는 store는 NotImplementedError.
+
+        저장 파일:
+            {path}          — FAISSVectorStore 벡터 인덱스
+            {path}.meta     — chunk_id 순서 목록 (FAISSVectorStore 내부)
+            {path}.registry — registry JSON
+        """
+        import json
+        import pathlib
+
+        save_fn = getattr(self._vectorstore, "save", None)
+        if save_fn is None:
+            raise NotImplementedError(
+                f"{type(self._vectorstore).__name__} does not support save(). "
+                "Use FAISSVectorStore for file-based persistence."
+            )
+        save_fn(path)
+        pathlib.Path(path + ".registry").write_text(
+            json.dumps(self._registry), encoding="utf-8"
+        )
+
+    @classmethod
+    def load(
+        cls,
+        path: str,
+        *,
+        embedding: EmbeddingPort,
+        top_n: int = 5,
+        score_threshold: float = 0.0,
+        name: Optional[str] = None,
+        hook: Optional[TraceHook] = None,
+    ) -> "VectorRetriever":
+        """저장된 인덱스와 registry를 복원해 VectorRetriever를 반환.
+
+        save()로 저장한 path를 그대로 전달한다.
+        embedding은 쿼리 시 embed_query()에 사용되므로 반드시 전달해야 한다.
+
+        Args:
+            path:            save() 시 사용한 경로.
+            embedding:       EmbeddingPort 구현체.
+            top_n:           최대 반환 스키마/컨텍스트 수. 기본 5.
+            score_threshold: 이 점수 이하는 결과에서 제외. 기본 0.0.
+        """
+        import json
+        import pathlib
+
+        from ...integrations.vectorstore.faiss_ import FAISSVectorStore
+
+        registry_path = pathlib.Path(path + ".registry")
+        if not registry_path.exists():
+            raise FileNotFoundError(f"Registry file not found: {registry_path}")
+
+        store = FAISSVectorStore.load(path)
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        return cls(
+            vectorstore=store,
+            embedding=embedding,
+            registry=registry,
+            top_n=top_n,
+            score_threshold=score_threshold,
+            name=name,
+            hook=hook,
+        )
+
+    # ── Core retrieval ────────────────────────────────────────────────
+
     def _run(self, query: str) -> RetrievalResult:
         """
         Args:

@@ -502,3 +502,74 @@ def test_catalog_chunker_split_batch():
     by_chunk = [c for entry in CATALOG for c in chunker.chunk(entry)]
 
     assert [c["chunk_id"] for c in by_split] == [c["chunk_id"] for c in by_chunk]
+
+
+# ---------------------------------------------------------------------------
+# 20-22. VectorRetriever save / load (FAISS 필요)
+# ---------------------------------------------------------------------------
+
+faiss = pytest.importorskip("faiss", reason="faiss-cpu not installed")
+
+
+class FakeEmbeddingFAISS:
+    """FAISS L2 정규화에서 zero-vector 오류가 안 나도록 비영벡터를 반환."""
+
+    def _vec(self, text: str) -> list[float]:
+        # 텍스트별로 구별 가능한 비영벡터
+        h = abs(hash(text)) % 900 + 100
+        return [h * 0.001, 1.0, 1.0, 1.0]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._vec(text)
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        return [self._vec(t) for t in texts]
+
+
+def test_save_and_load_returns_same_results(tmp_path):
+    """save → load 후 동일 쿼리에 동일 스키마가 반환된다."""
+    path = str(tmp_path / "catalog")
+    embedding = FakeEmbeddingFAISS()
+
+    from lang2sql.integrations.vectorstore.faiss_ import FAISSVectorStore
+
+    store = FAISSVectorStore(index_path=path + ".faiss")
+    chunks = CatalogChunker().split(CATALOG)
+    original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
+    original.save(path)
+
+    loaded = VectorRetriever.load(path, embedding=embedding)
+    result = loaded.run("주문 정보")
+
+    assert len(result.schemas) > 0
+    assert result.schemas[0]["name"] == original.run("주문 정보").schemas[0]["name"]
+
+
+def test_load_registry_intact(tmp_path):
+    """load 후 registry의 키·값이 원본과 동일하다."""
+    path = str(tmp_path / "catalog")
+    embedding = FakeEmbeddingFAISS()
+
+    from lang2sql.integrations.vectorstore.faiss_ import FAISSVectorStore
+
+    store = FAISSVectorStore(index_path=path + ".faiss")
+    chunks = CatalogChunker().split(CATALOG)
+    original = VectorRetriever.from_chunks(chunks, embedding=embedding, vectorstore=store)
+    original.save(path)
+
+    loaded = VectorRetriever.load(path, embedding=embedding)
+
+    assert set(loaded._registry.keys()) == set(original._registry.keys())
+    for chunk_id, chunk in original._registry.items():
+        assert loaded._registry[chunk_id]["text"] == chunk["text"]
+        assert loaded._registry[chunk_id]["source_id"] == chunk["source_id"]
+
+
+def test_save_raises_for_inmemory():
+    """InMemoryVectorStore는 save()를 지원하지 않아 NotImplementedError가 발생한다."""
+    embedding = FakeEmbeddingFAISS()
+    chunks = CatalogChunker().split(CATALOG)
+    retriever = VectorRetriever.from_chunks(chunks, embedding=embedding)  # InMemory 기본값
+
+    with pytest.raises(NotImplementedError, match="does not support save"):
+        retriever.save("/tmp/should_not_exist")
