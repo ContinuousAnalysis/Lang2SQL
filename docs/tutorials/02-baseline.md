@@ -238,6 +238,63 @@ lang2sql query "이번 달 순매출 합계" --flow enriched --no-gate
 
 ---
 
+## 5) Factory 함수 — 환경변수 기반 인스턴스 생성
+
+`.env`만 설정하면 코드 변경 없이 LLM·임베딩·DB를 교체할 수 있습니다.
+CLI와 Streamlit UI가 내부적으로 사용하는 함수이며, 직접 호출해도 됩니다.
+
+```python
+from lang2sql import build_llm_from_env, build_embedding_from_env, build_db_from_env
+
+llm       = build_llm_from_env()        # LLM_PROVIDER 환경변수 참조
+embedding = build_embedding_from_env()   # EMBEDDING_PROVIDER 환경변수 참조
+db        = build_db_from_env()          # DB_TYPE, DB_URL 등 환경변수 참조
+```
+
+### 지원 프로바이더
+
+| 함수 | 환경변수 | 지원 값 |
+|------|----------|---------|
+| `build_llm_from_env()` | `LLM_PROVIDER` | `openai`, `anthropic`, `azure`, `gemini`, `bedrock`, `ollama`, `huggingface` |
+| `build_embedding_from_env()` | `EMBEDDING_PROVIDER` | `openai`, `azure`, `ollama`, `bedrock`, `gemini`, `huggingface` |
+| `build_db_from_env()` | `DB_TYPE` | `sqlite`, `postgresql`, `mysql`, `mariadb`, `duckdb`, `clickhouse`, `snowflake`, `oracle` |
+
+### .env 예시 (Anthropic + PostgreSQL)
+
+```bash
+LLM_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_LLM_MODEL=claude-sonnet-4-6
+
+EMBEDDING_PROVIDER=openai
+OPEN_AI_KEY=sk-...
+OPEN_AI_EMBEDDING_MODEL=text-embedding-3-large
+
+DB_TYPE=postgresql
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mydb
+DB_USER=user
+DB_PASSWORD=pass
+```
+
+### 파이프라인에서 사용
+
+```python
+from lang2sql import BaselineNL2SQL, build_llm_from_env, build_db_from_env
+
+pipeline = BaselineNL2SQL(
+    catalog=catalog,
+    llm=build_llm_from_env(),
+    db=build_db_from_env(),
+    db_dialect="postgresql",
+)
+```
+
+> **팁**: `build_explorer_from_url()`은 URL을 직접 받습니다 (환경변수 방식 아님).
+
+---
+
 ## 다음 단계
 
 벡터 검색으로 검색 품질을 높이려면 → [03-vector-search.md](./03-vector-search.md)
