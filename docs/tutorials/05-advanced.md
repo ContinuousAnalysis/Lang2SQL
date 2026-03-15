@@ -212,7 +212,76 @@ retriever = VectorRetriever.from_sources(
 
 ---
 
-## 5) Hook — 관측성과 디버깅
+## 5) DataHub 카탈로그 로더
+
+DataHub GMS 서버에서 테이블 메타데이터를 가져와 `CatalogEntry` 목록으로 변환합니다.
+수동으로 카탈로그를 작성하지 않아도 DataHub에 등록된 스키마 정보를 바로 사용할 수 있습니다.
+
+```bash
+pip install acryl-datahub
+```
+
+```python
+from lang2sql.integrations.catalog import DataHubCatalogLoader
+
+loader = DataHubCatalogLoader(
+    gms_server="http://localhost:8080",
+    extra_headers={"Authorization": "Bearer <token>"},
+)
+
+# 전체 URN 조회
+catalog = loader.load()
+
+# 특정 URN만 조회
+catalog = loader.load(urns=[
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,mydb.public.orders,PROD)",
+    "urn:li:dataset:(urn:li:dataPlatform:postgres,mydb.public.customers,PROD)",
+])
+
+# 바로 파이프라인에 연결
+from lang2sql import BaselineNL2SQL
+from lang2sql.integrations.db import SQLAlchemyDB
+from lang2sql.integrations.llm import OpenAILLM
+
+pipeline = BaselineNL2SQL(
+    catalog=catalog,
+    llm=OpenAILLM(model="gpt-4o-mini"),
+    db=SQLAlchemyDB("postgresql://user:pass@localhost:5432/mydb"),
+    db_dialect="postgresql",
+)
+```
+
+> `DataHubCatalogLoader`는 `CatalogLoaderPort`를 구현합니다.
+> DataHub 없이도 `SQLAlchemyExplorer`로 DDL을 직접 조회하거나 CSV/수동 카탈로그를 사용할 수 있습니다.
+
+---
+
+## 6) Port 프로토콜 레퍼런스
+
+커스텀 어댑터를 작성할 때 구현해야 하는 메서드 목록입니다.
+
+| Port | 메서드 | 시그니처 | 용도 |
+|------|--------|----------|------|
+| `LLMPort` | `invoke` | `(messages: list[dict]) -> str` | LLM 백엔드 교체 |
+| `DBPort` | `execute` | `(sql: str) -> list[dict]` | DB 백엔드 교체 |
+| `EmbeddingPort` | `embed_query` | `(text: str) -> list[float]` | 단일 텍스트 임베딩 |
+| | `embed_texts` | `(texts: list[str]) -> list[list[float]]` | 배치 임베딩 |
+| `VectorStorePort` | `upsert` | `(ids: list[str], vectors: list[list[float]]) -> None` | 벡터 저장 |
+| | `search` | `(vector: list[float], k: int) -> list[tuple[str, float]]` | 유사도 검색 (id, score) |
+| `DocumentLoaderPort` | `load` | `() -> list[TextDocument]` | 문서 로드 |
+| `DocumentChunkerPort` | `chunk` | `(doc: TextDocument) -> list[IndexedChunk]` | 문서 분할 |
+| `CatalogLoaderPort` | `load` | `(urns: list[str] \| None) -> list[CatalogEntry]` | 외부 카탈로그 로드 |
+| `DBExplorerPort` | `list_tables` | `() -> list[str]` | 테이블 목록 |
+| | `get_ddl` | `(table: str) -> str` | DDL 조회 |
+| | `sample_data` | `(table: str, limit: int) -> list[dict]` | 샘플 데이터 |
+| | `execute_read_only` | `(sql: str) -> list[dict]` | 읽기 전용 쿼리 |
+
+모든 Port는 `src/lang2sql/core/ports.py`에 `Protocol`로 정의되어 있습니다.
+클래스 상속 없이 **메서드 시그니처만 맞추면** 어떤 객체든 연결할 수 있습니다 (structural subtyping).
+
+---
+
+## 7) Hook — 관측성과 디버깅
 
 `MemoryHook`으로 컴포넌트 단위 실행 이벤트를 수집합니다.
 
@@ -254,7 +323,7 @@ SQLExecutor                    end     1.2ms  error=None
 
 ---
 
-## 6) Best Practices 체크리스트
+## 8) Best Practices 체크리스트
 
 ### 카탈로그 작성
 
@@ -285,7 +354,7 @@ SQLExecutor                    end     1.2ms  error=None
 
 ---
 
-## 7) 트러블슈팅
+## 9) 트러블슈팅
 
 ### `IntegrationMissingError: openai`
 
