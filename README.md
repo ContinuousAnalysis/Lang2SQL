@@ -137,13 +137,19 @@ lang2sql query "질문" --vectordb-type faiss --vectordb-location ./dev/table_in
 lang2sql query "질문" --vectordb-type pgvector --vectordb-location "postgresql://user:pass@host:5432/db"
 ```
 
-참고: DataHub 없이도 미리 준비된 VectorDB(FAISS 디렉토리 혹은 pgvector 컬렉션)를 바로 사용할 수 있습니다. 자세한 준비 방법은 [DataHub 없이 시작하기](docs/tutorials/getting-started-without-datahub.md)를 참고하세요.
+참고: DataHub 없이도 미리 준비된 VectorDB(FAISS 파일 혹은 pgvector 컬렉션)를 바로 사용할 수 있습니다. 자세한 준비 방법은 [벡터 검색 튜토리얼](docs/tutorials/03-vector-search.md)을 참고하세요.
 
-### 처음 시작하기 (DataHub 없이)
+### 처음 시작하기
 
-튜토리얼 본문이 길어져 별도 문서로 분리되었습니다. 아래 문서를 참고하세요.
+튜토리얼은 난이도 순서로 구성되어 있습니다.
 
-- [DataHub 없이 시작하기 튜토리얼](docs/tutorials/getting-started-without-datahub.md)
+| 번호 | 문서 | 내용 |
+|------|------|------|
+| 01 | [빠른 시작](docs/tutorials/01-quickstart.md) | 5분 안에 NL2SQL 실행 |
+| 02 | [Baseline 파이프라인](docs/tutorials/02-baseline.md) | 실제 DB 연결, DB Explorer |
+| 03 | [벡터 검색](docs/tutorials/03-vector-search.md) | FAISS/pgvector 인덱싱 |
+| 04 | [하이브리드 검색](docs/tutorials/04-hybrid.md) | BM25 + Vector, EnrichedNL2SQL |
+| 05 | [고급](docs/tutorials/05-advanced.md) | 수동 조합, 커스텀 어댑터, Hook |
 
 ### 자연어 쿼리 실행
 
