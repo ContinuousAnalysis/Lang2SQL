@@ -255,7 +255,7 @@ class ContractError(Lang2SQLError):
 ### 언제 발생?
 
 * Lang2SQL이 요구하는 호출/반환 계약을 위반했을 때
-* 예: `RunContext -> RunContext` 계약인데 `None` 또는 `int`를 반환
+* 예: `_run()`이 반드시 반환해야 하는 타입과 다른 값을 반환
 
 이 에러는 “사용자 코드 버그를 빨리 발견(fail-fast)”하기 위한 타입입니다.
 
