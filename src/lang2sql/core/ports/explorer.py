@@ -46,3 +46,9 @@ class ExplorerPort(Protocol):
     async def sample_rows(self, name: str, limit: int = 5) -> list[dict]:
         """A few rows to give the model a feel for the data."""
         ...
+
+    async def execute(self, sql: str, limit: int = 1000) -> list[dict]:
+        """Run a read-only query (already cleared by the safety pipeline) and
+        return up to ``limit`` rows. The ``run_sql`` tool calls this only after
+        a PASS verdict; the adapter must never see un-gated SQL."""
+        ...
