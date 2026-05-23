@@ -1,0 +1,182 @@
+"""bot.py — the ONLY discord.py-aware module in the frontend (Phase 1).
+
+It is the thin shell described in v4.1 §2.1: receive a Discord interaction or
+mention, translate it to an :class:`InteractionContext` →
+:class:`Identity` (session_router), call a :class:`CommandHandlers` method, and
+deliver the resulting :class:`OutboundMessage` natively (plain reply, or a
+``discord.File`` upload when render attached a CSV).
+
+Import-safety contract (tested): importing this module must not require a token
+or any network access — only :func:`run` connects to the gateway. So discord.py
+is imported at module load (it's a pure library import), but the client is
+constructed and the token is read only inside :func:`run`.
+"""
+
+from __future__ import annotations
+
+import io
+import os
+
+import discord
+from discord import app_commands
+
+from ...core.ports.frontend import OutboundMessage
+from ...tenancy.concierge import ContextConcierge
+from .commands import CommandHandlers
+from .session_router import InteractionContext, to_identity
+
+TOKEN_ENV = "DISCORD_BOT_TOKEN"
+
+
+def _interaction_context(interaction: discord.Interaction) -> InteractionContext:
+    """Extract frontend-neutral coordinates from a slash-command interaction."""
+    channel = interaction.channel
+    thread_id: str | None = None
+    channel_id: str | None = None
+    if isinstance(channel, discord.Thread):
+        thread_id = str(channel.id)
+        channel_id = str(channel.parent_id) if channel.parent_id else None
+    elif channel is not None:
+        channel_id = str(channel.id)
+
+    is_admin = False
+    perms = getattr(interaction, "permissions", None)
+    if perms is not None:
+        is_admin = bool(perms.administrator)
+
+    return InteractionContext(
+        user_id=str(interaction.user.id),
+        guild_id=str(interaction.guild_id) if interaction.guild_id else None,
+        channel_id=channel_id,
+        thread_id=thread_id,
+        is_admin=is_admin,
+    )
+
+
+def _message_context(message: discord.Message) -> InteractionContext:
+    """Extract coordinates from a plain message (an @mention or thread reply)."""
+    channel = message.channel
+    thread_id: str | None = None
+    channel_id: str | None = None
+    if isinstance(channel, discord.Thread):
+        thread_id = str(channel.id)
+        channel_id = str(channel.parent_id) if channel.parent_id else None
+    elif channel is not None:
+        channel_id = str(channel.id)
+
+    is_admin = False
+    author = message.author
+    guild_perms = getattr(author, "guild_permissions", None)
+    if guild_perms is not None:
+        is_admin = bool(guild_perms.administrator)
+
+    return InteractionContext(
+        user_id=str(author.id),
+        guild_id=str(message.guild.id) if message.guild else None,
+        channel_id=channel_id,
+        thread_id=thread_id,
+        is_admin=is_admin,
+    )
+
+
+def _to_sendable(message: OutboundMessage) -> tuple[str, discord.File | None]:
+    """Turn an :class:`OutboundMessage` into (content, optional file) for send."""
+    if message.file_bytes is not None:
+        file = discord.File(
+            io.BytesIO(message.file_bytes),
+            filename=message.file_name or "result.csv",
+        )
+        return message.text, file
+    return message.text, None
+
+
+class Lang2SQLBot(discord.Client):
+    """Discord client wiring slash commands + @mentions to the harness."""
+
+    def __init__(self, handlers: CommandHandlers) -> None:
+        intents = discord.Intents.default()
+        intents.message_content = True  # needed to read @mention text
+        super().__init__(intents=intents)
+        self._handlers = handlers
+        self.tree = app_commands.CommandTree(self)
+        self._register_commands()
+
+    async def setup_hook(self) -> None:
+        # Sync slash commands with Discord on startup.
+        await self.tree.sync()
+
+    def _register_commands(self) -> None:
+        tree = self.tree
+        handlers = self._handlers
+
+        @tree.command(name="connect", description="Store a database connection string")
+        async def connect(interaction: discord.Interaction, dsn: str) -> None:
+            await self._run(interaction, handlers.connect(to_identity(_interaction_context(interaction)), dsn))
+
+        @tree.command(name="ingest", description="Propose definitions from a document")
+        async def ingest(interaction: discord.Interaction, ref: str) -> None:
+            await self._run(interaction, handlers.ingest(to_identity(_interaction_context(interaction)), ref=ref))
+
+        @tree.command(name="define_metric", description='Define a metric: name and "definition"')
+        async def define_metric(
+            interaction: discord.Interaction, name: str, definition: str
+        ) -> None:
+            await self._run(
+                interaction,
+                handlers.define_metric(to_identity(_interaction_context(interaction)), name, definition),
+            )
+
+        @tree.command(name="remember", description="Remember a fact for future turns")
+        async def remember(interaction: discord.Interaction, text: str) -> None:
+            await self._run(interaction, handlers.remember(to_identity(_interaction_context(interaction)), text))
+
+        @tree.command(name="semantic_show", description="Show definitions in effect here")
+        async def semantic_show(interaction: discord.Interaction) -> None:
+            await self._run(interaction, handlers.semantic_show(to_identity(_interaction_context(interaction))))
+
+        @tree.command(name="audit_me", description="Show your recent activity")
+        async def audit_me(interaction: discord.Interaction) -> None:
+            await self._run(interaction, handlers.audit_me(to_identity(_interaction_context(interaction))))
+
+    async def _run(self, interaction: discord.Interaction, coro) -> None:
+        """Await a handler coroutine and reply with its OutboundMessage."""
+        await interaction.response.defer(thinking=True)
+        message = await coro
+        content, file = _to_sendable(message)
+        await interaction.followup.send(content=content or "(empty)", file=file)
+
+    async def on_message(self, message: discord.Message) -> None:
+        """Treat an @mention (or a reply inside a thread) as a free-form query."""
+        if message.author == self.user:
+            return
+        mentioned = self.user is not None and self.user.mentioned_in(message)
+        in_thread = isinstance(message.channel, discord.Thread)
+        if not mentioned and not in_thread:
+            return
+
+        text = message.content
+        if self.user is not None:
+            text = text.replace(self.user.mention, "").strip()
+        if not text:
+            return
+
+        identity = to_identity(_message_context(message))
+        out = await self._handlers.query(identity, text)
+        content, file = _to_sendable(out)
+        await message.channel.send(content=content or "(empty)", file=file)
+
+
+def run() -> None:
+    """Entry point for the ``lang2sql-bot`` script: connect and serve.
+
+    Reads the token from :data:`TOKEN_ENV`; raises a clear error if it's unset
+    so a misconfigured deploy fails loudly rather than hanging on the gateway.
+    """
+    token = os.environ.get(TOKEN_ENV)
+    if not token:
+        raise RuntimeError(
+            f"{TOKEN_ENV} is not set; export your Discord bot token to run the bot."
+        )
+    handlers = CommandHandlers(ContextConcierge())
+    client = Lang2SQLBot(handlers)
+    client.run(token)

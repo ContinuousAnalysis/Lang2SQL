@@ -1,46 +1,67 @@
 """EncryptedSecrets — per-scope credential storage over a :class:`SqliteStore` kv.
 
-V1 obfuscation only: each value is XOR'd against a static key and base64-encoded
-before it lands in the kv table. This is *not* real encryption — it keeps
-plaintext DSNs/API keys out of casual ``sqlite3`` browsing, nothing more. Real
-KMS/Fernet-backed encryption is deferred to v1.5 (the :class:`SecretsPort`
-boundary lets that drop in without touching callers).
+Real symmetric encryption via :class:`cryptography.fernet.Fernet` (AES-128-CBC +
+HMAC). Each secret value is encrypted to a Fernet token before it lands in the
+kv table, so a stolen database file yields no plaintext DSNs/API keys without
+the key. The :class:`SecretsPort` boundary is unchanged, so callers (concierge,
+``/connect``) need no edits.
+
+Key management:
+
+* If env ``LANG2SQL_SECRET_KEY`` holds a urlsafe-base64 Fernet key, that is the
+  encryption key — point every deployment instance at the same value so secrets
+  decrypt across restarts and across machines.
+* Otherwise a key is generated once and persisted in the kv table under the
+  reserved scope ``__secrets__`` / key ``fernet_key``. This keeps a single
+  sqlite file self-contained (secrets survive restart) but is only as private
+  as the file itself — set ``LANG2SQL_SECRET_KEY`` for real key separation.
 """
 
 from __future__ import annotations
 
-import base64
+import os
+
+from cryptography.fernet import Fernet
 
 from ..adapters.storage.sqlite_store import SqliteStore
 
-# Static obfuscation key. Not a secret and not security — see module docstring.
-_XOR_KEY = b"lang2sql-v1-obfuscation-key"
+# Reserved kv location for the auto-generated key (when env key is absent).
+_KEY_SCOPE = "__secrets__"
+_KEY_NAME = "fernet_key"
+_ENV_KEY = "LANG2SQL_SECRET_KEY"
 
 
-def _xor(data: bytes) -> bytes:
-    return bytes(b ^ _XOR_KEY[i % len(_XOR_KEY)] for i, b in enumerate(data))
+def _resolve_key(store: SqliteStore) -> bytes:
+    """Pick the Fernet key: env override, else persisted, else freshly generated."""
+    env_key = os.environ.get(_ENV_KEY)
+    if env_key:
+        return env_key.encode("ascii")
 
+    stored = store.kv_get(_KEY_SCOPE, _KEY_NAME)
+    if stored is not None:
+        return stored.encode("ascii")
 
-def _obfuscate(value: str) -> str:
-    return base64.b64encode(_xor(value.encode("utf-8"))).decode("ascii")
-
-
-def _deobfuscate(blob: str) -> str:
-    return _xor(base64.b64decode(blob)).decode("utf-8")
+    key = Fernet.generate_key()
+    store.kv_set(_KEY_SCOPE, _KEY_NAME, key.decode("ascii"))
+    return key
 
 
 class EncryptedSecrets:
     """Implements :class:`SecretsPort` on top of a kv-capable store."""
 
-    def __init__(self, store: SqliteStore) -> None:
+    def __init__(self, store: SqliteStore, *, key: bytes | None = None) -> None:
         self._store = store
+        self._fernet = Fernet(key if key is not None else _resolve_key(store))
 
     async def get(self, scope: str, key: str) -> str | None:
         blob = self._store.kv_get(scope, key)
-        return _deobfuscate(blob) if blob is not None else None
+        if blob is None:
+            return None
+        return self._fernet.decrypt(blob.encode("ascii")).decode("utf-8")
 
     async def set(self, scope: str, key: str, value: str) -> None:
-        self._store.kv_set(scope, key, _obfuscate(value))
+        token = self._fernet.encrypt(value.encode("utf-8")).decode("ascii")
+        self._store.kv_set(scope, key, token)
 
     async def delete(self, scope: str, key: str) -> None:
         self._store.kv_delete(scope, key)
