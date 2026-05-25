@@ -14,11 +14,24 @@ authors = [
 dependencies = [
   "discord.py>=2.3,<3.0",   # Phase 1 frontend transport
   "cryptography>=42.0",      # EncryptedSecrets at-rest encryption
+  "sqlalchemy>=2.0",         # generic DB explorer (one adapter, many engines)
 ]
 
 [project.optional-dependencies]
-# Real outbound adapters (V1 ships urllib OpenAI + stub PG; these enable v1.5 swaps)
-postgres = ["psycopg[binary]>=3.2,<4.0"]
+# DB driver extras. The SQLAlchemyExplorer is dialect-agnostic; install only the
+# drivers you connect to. Cloudflare D1 needs no driver (HTTP API via stdlib).
+postgres  = ["psycopg[binary]>=3.2,<4.0"]
+bigquery  = ["sqlalchemy-bigquery>=1.11"]
+snowflake = ["snowflake-sqlalchemy>=1.6"]
+mysql     = ["pymysql>=1.1"]
+duckdb    = ["duckdb-engine>=0.13"]
+all-db    = [
+  "psycopg[binary]>=3.2,<4.0",
+  "sqlalchemy-bigquery>=1.11",
+  "snowflake-sqlalchemy>=1.6",
+  "pymysql>=1.1",
+  "duckdb-engine>=0.13",
+]
 
 [project.scripts]
 lang2sql = "lang2sql.frontends.cli.app:main"

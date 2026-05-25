@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 
+from ..adapters.db.factory import explorer_from_env
 from ..adapters.db.postgres_explorer import PostgresExplorer
 from ..adapters.llm.fake import FakeLLM
 from ..adapters.llm.openai_ import OpenAILLM
@@ -61,7 +62,9 @@ class ContextConcierge:
         self._store = store if store is not None else SqliteStore(path)
         # Audit + session persistence both ride the one sqlite store by default.
         self._llm = llm if llm is not None else _default_llm()
-        self._explorer = explorer if explorer is not None else PostgresExplorer(_DEFAULT_DSN)
+        # Explorer precedence: explicit injection → env-configured real DB
+        # (LANG2SQL_DB_URL / Cloudflare D1) → the canned stub for offline dev.
+        self._explorer = explorer or explorer_from_env() or PostgresExplorer(_DEFAULT_DSN)
         self._safety = safety if safety is not None else SafetyPipeline()
         # Persistent semantic store by default so definitions survive restart.
         self._scope_resolver = (
