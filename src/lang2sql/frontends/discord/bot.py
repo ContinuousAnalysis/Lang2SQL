@@ -109,6 +109,11 @@ class Lang2SQLBot(discord.Client):
         tree = self.tree
         handlers = self._handlers
 
+        @tree.command(name="setup", description="Connect a database with a guided form (no DSN needed)")
+        async def setup(interaction: discord.Interaction) -> None:
+            from .setup_wizard import start_setup_flow  # local import — discord-only path
+            await start_setup_flow(interaction, handlers, _interaction_context)
+
         @tree.command(name="connect", description="Store a database connection string")
         async def connect(interaction: discord.Interaction, dsn: str) -> None:
             await self._run(interaction, handlers.connect(to_identity(_interaction_context(interaction)), dsn))

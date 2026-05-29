@@ -21,11 +21,18 @@ from .d1_explorer import D1Explorer
 from .sqlalchemy_explorer import SqlAlchemyExplorer
 
 
-def build_explorer(connection: str, *, schema: str | None = None) -> ExplorerPort:
+def build_explorer(
+    connection: str,
+    *,
+    schema: str | None = None,
+    extras: dict | None = None,
+) -> ExplorerPort:
     """Route a connection string to the matching explorer adapter.
 
     ``schema`` is forwarded to the SQLAlchemy explorer (ignored by D1, which is
-    schema-less SQLite). Raises ``ValueError`` on an empty/unparseable string.
+    schema-less SQLite). ``extras`` carries per-adapter secrets that don't
+    belong in the URL — currently ``d1_token`` for the D1 HTTP API. Raises
+    ``ValueError`` on an empty/unparseable string.
     """
     if not connection or not connection.strip():
         raise ValueError("empty connection string")
@@ -34,13 +41,19 @@ def build_explorer(connection: str, *, schema: str | None = None) -> ExplorerPor
     if not scheme:
         raise ValueError(f"connection string has no scheme: {connection!r}")
 
+    extras = extras or {}
+
     if scheme == "d1":
         parts = urlsplit(connection)
         account_id = parts.netloc
         database_id = parts.path.lstrip("/")
         if not account_id or not database_id:
             raise ValueError("d1 URL must be d1://<account_id>/<database_id>")
-        return D1Explorer(account_id=account_id, database_id=database_id)
+        return D1Explorer(
+            account_id=account_id,
+            database_id=database_id,
+            token=extras.get("d1_token"),
+        )
 
     # Anything else is assumed to be a SQLAlchemy URL (driver loaded lazily).
     return SqlAlchemyExplorer(connection, schema=schema)

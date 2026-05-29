@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from ...adapters.db import build_explorer
+from ...adapters.db.dsn_builder import assemble
 from ...core.identity import Identity
 from ...core.ports.frontend import OutboundMessage
 from ...harness.loop import agent_loop
@@ -92,6 +94,60 @@ class CommandHandlers:
         for event in events:
             lines.append(f"- {_fmt_ts(event.ts)} {event.action} @ {event.scope}")
         return OutboundMessage(text="\n".join(lines))
+
+    async def register_db_for_guild(
+        self,
+        identity: Identity,
+        db_type: str,
+        fields: dict[str, str],
+    ) -> OutboundMessage:
+        """The /setup wizard's commit step (non-developer entry point).
+
+        Takes the wizard's per-field inputs (no DSN literals), assembles the
+        DSN, tests the connection by listing tables once, and on success
+        stores the DSN (+ any out-of-band token) under the guild's scope via
+        :class:`EncryptedSecrets`. The next ``build_context`` for this guild
+        will use this DB transparently.
+        """
+        try:
+            spec = assemble(db_type, fields)
+        except ValueError as exc:
+            return OutboundMessage(text=f"⚠️ Setup error: {exc}")
+
+        try:
+            explorer = build_explorer(spec.dsn, extras=spec.extras)
+            tables = await explorer.list_tables()
+        except ModuleNotFoundError as exc:
+            return OutboundMessage(
+                text=(
+                    f"⚠️ Connection driver not installed for {db_type}. "
+                    f"Ask an admin to run `uv sync --extra {db_type}`.\n"
+                    f"(details: {exc})"
+                )
+            )
+        except Exception as exc:  # surface what the DB said, but stay user-friendly
+            return OutboundMessage(
+                text=(
+                    f"❌ Couldn't connect to {db_type}: {type(exc).__name__}: {exc}.\n"
+                    "Common causes: wrong host/port, network/firewall, "
+                    "wrong credentials, or read permission missing."
+                )
+            )
+
+        scope = identity.guild_id or f"dm:{identity.user_id}"
+        await self._concierge.secrets.set(scope, "db_dsn", spec.dsn)
+        for k, v in spec.extras.items():
+            await self._concierge.secrets.set(scope, f"db_extras.{k}", v)
+        # Bust any cached explorer for this scope so the next turn picks it up.
+        self._concierge.forget_explorer(scope)
+
+        return OutboundMessage(
+            text=(
+                f"✅ Connected to **{db_type}** — found **{len(tables)} table(s)**. "
+                "Your credentials are stored encrypted; you can `/semantic_show` "
+                "or just ask a question now."
+            )
+        )
 
     async def connect(self, identity: Identity, dsn: str) -> OutboundMessage:
         """V1 stub: stash a DB DSN keyed by guild/DM in the concierge kv store.
