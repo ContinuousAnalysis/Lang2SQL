@@ -21,7 +21,9 @@
 > *separate* set of definitions per team → it answers questions over an
 > incomplete database → it remembers every definition and conversation.
 
-This is the **v4.1 rebuild** (see [`docs/discord_first_redesign_v4_1.md`](docs/discord_first_redesign_v4_1.md)).
+👉 **프로젝트 전체 그림(단일 SSOT)**: [`docs/PROJECT.md`](docs/PROJECT.md) · **컨트리뷰터 한눈 가이드**: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+This is the **v4.1 rebuild** (배경/설계 의도: [`docs/discord_first_redesign_v4_1.md`](docs/discord_first_redesign_v4_1.md)).
 Where most text-to-SQL projects compete on *"generate better SQL,"* Lang2SQL
 competes on everything *around* the query: business-context learning, per-team
 semantics, robustness to messy databases, and memory. **Discord is the Phase 1
