@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from ..adapters.db.factory import explorer_from_env
+from ..adapters.db.factory import build_explorer, explorer_from_env
 from ..adapters.db.postgres_explorer import PostgresExplorer
 from ..adapters.llm.fake import FakeLLM
 from ..adapters.llm.openai_ import OpenAILLM
@@ -85,6 +85,11 @@ class ContextConcierge:
         self._source = FileSource()
         self._extractor = LLMExtractor(self._llm)
 
+        # Per-scope explorer cache. /setup stores a DSN under the guild scope;
+        # the next build_context for that scope materialises an explorer from
+        # it on demand and reuses it across turns (lazy + cached).
+        self._scope_explorers: dict[str, ExplorerPort] = {}
+
     @property
     def store(self) -> SqliteStore:
         return self._store
@@ -98,6 +103,32 @@ class ContextConcierge:
     def scope_resolver(self) -> ScopeResolverPort:
         """Federation resolver over the (by default persistent) semantic store."""
         return self._scope_resolver
+
+    def forget_explorer(self, scope: str) -> None:
+        """Bust the cached explorer for ``scope`` (call after /setup updates a DSN)."""
+        self._scope_explorers.pop(scope, None)
+
+    async def _explorer_for(self, identity: Identity) -> ExplorerPort:
+        """Pick the right explorer for this identity's guild scope.
+
+        If the wizard has stored a DSN for the guild (under ``db_dsn`` in
+        secrets), build an explorer from it (cached). Otherwise fall back to
+        the concierge's default explorer (env-configured or stub).
+        """
+        scope = identity.guild_id or f"dm:{identity.user_id}"
+        cached = self._scope_explorers.get(scope)
+        if cached is not None:
+            return cached
+        dsn = await self._secrets.get(scope, "db_dsn")
+        if not dsn:
+            return self._explorer
+        extras: dict[str, str] = {}
+        d1_token = await self._secrets.get(scope, "db_extras.d1_token")
+        if d1_token:
+            extras["d1_token"] = d1_token
+        explorer = build_explorer(dsn, extras=extras or None)
+        self._scope_explorers[scope] = explorer
+        return explorer
 
     async def build_context(
         self, identity: Identity, user_text: str | None = None
@@ -120,7 +151,7 @@ class ContextConcierge:
             llm=self._llm,
             tools=tools,
             session=session,
-            explorer=self._explorer,
+            explorer=await self._explorer_for(identity),
             safety=self._safety,
             audit=self._audit,
             scope_resolver=self._scope_resolver,
