@@ -1,0 +1,143 @@
+"""CommandHandlers — the V1 Discord command surface, free of discord.py.
+
+Each public method takes plain arguments (an :class:`Identity` plus strings) and
+returns an :class:`OutboundMessage`, so the whole command layer is unit-testable
+without a gateway connection. ``bot.py`` is the only module that knows about
+slash commands, embeds, and ``discord.File``; it parses an interaction, picks a
+handler here, and renders the result.
+
+The handlers drive the harness through a :class:`ContextConcierge`: every call
+builds a fresh :class:`HarnessContext` for the identity (restoring its session),
+then either runs the agent loop (``query``) or invokes a single ctx-aware tool /
+port directly (the structured commands). Running the real tools — rather than
+re-implementing their logic — keeps federation scoping, audit logging, and
+memory writes identical to what the agent itself does.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from ...core.identity import Identity
+from ...core.ports.frontend import OutboundMessage
+from ...harness.loop import agent_loop
+from ...tenancy.concierge import ContextConcierge
+from .render import render_answer
+
+
+class CommandHandlers:
+    """Async command methods returning :class:`OutboundMessage` (discord-free)."""
+
+    def __init__(self, concierge: ContextConcierge) -> None:
+        self._concierge = concierge
+
+    async def query(self, identity: Identity, text: str) -> OutboundMessage:
+        """Run a natural-language question through the agent loop, then render.
+
+        The loop mutates the in-context :class:`Session`; we persist it back
+        through the concierge store afterwards so the next message in the same
+        thread/DM continues the conversation (tiebreaker #4).
+        """
+        ctx = await self._concierge.build_context(identity, user_text=text)
+        answer = await agent_loop(ctx, text)
+        await self._concierge.store.save(identity.session_key(), ctx.session)
+        return render_answer(answer)
+
+    async def define_metric(
+        self,
+        identity: Identity,
+        name: str,
+        definition: str,
+        scope: str | None = None,
+    ) -> OutboundMessage:
+        """Register one definition at the current (or requested) scope.
+
+        Delegates to the ctx-aware ``define_metric`` tool, which writes through
+        the :class:`ScopeResolverPort` and records an audit event. ``scope`` is
+        ``"channel"`` (default) or ``"guild"`` per the tool's schema.
+        """
+        ctx = await self._concierge.build_context(identity)
+        args: dict[str, str] = {"name": name, "definition": definition}
+        if scope:
+            args["scope"] = scope
+        result = await ctx.tools.dispatch("define_metric", args, ctx, "cmd:define_metric")
+        return OutboundMessage(text=result.content)
+
+    async def remember(self, identity: Identity, text: str) -> OutboundMessage:
+        """Persist a user fact via the memory service (manual ``/remember``)."""
+        ctx = await self._concierge.build_context(identity)
+        result = await ctx.tools.dispatch("remember", {"text": text}, ctx, "cmd:remember")
+        return OutboundMessage(text=result.content)
+
+    async def semantic_show(self, identity: Identity) -> OutboundMessage:
+        """Show the effective semantic layer for this scope chain."""
+        ctx = await self._concierge.build_context(identity)
+        if ctx.scope_resolver is None:
+            return OutboundMessage(text="Semantic layer unavailable.")
+        layer = await ctx.scope_resolver.effective_layer(identity)
+        rendered = layer.render()
+        if not rendered:
+            return OutboundMessage(text="No definitions apply in this scope yet.")
+        return OutboundMessage(text=f"Definitions in effect here:\n{rendered}")
+
+    async def audit_me(self, identity: Identity) -> OutboundMessage:
+        """List the caller's recent audited actions, newest first."""
+        ctx = await self._concierge.build_context(identity)
+        if ctx.audit is None:
+            return OutboundMessage(text="Audit log unavailable.")
+        events = await ctx.audit.query(identity.user_id)
+        if not events:
+            return OutboundMessage(text="No audited activity for you yet.")
+        lines = ["Your recent activity:"]
+        for event in events:
+            lines.append(f"- {_fmt_ts(event.ts)} {event.action} @ {event.scope}")
+        return OutboundMessage(text="\n".join(lines))
+
+    async def connect(self, identity: Identity, dsn: str) -> OutboundMessage:
+        """V1 stub: stash a DB DSN keyed by guild/DM in the concierge kv store.
+
+        There is no secrets *port* on :class:`HarnessContext` in V1, so this
+        does not yet encrypt or wire the DSN into the explorer — it simply
+        records it (so a later run can pick it up) and acknowledges. The real
+        encrypted-secrets path lands in the tenancy work (task #2); this keeps
+        the command present and documented without overreaching.
+        """
+        dsn = dsn.strip()
+        if not dsn:
+            return OutboundMessage(text="Provide a database connection string.")
+        scope = identity.guild_id or f"dm:{identity.user_id}"
+        self._concierge.store.kv_set(scope, "dsn", dsn)
+        return OutboundMessage(
+            text=(
+                "Connection string saved for this workspace (V1 stub — not yet "
+                "encrypted or live; queries still run against the configured DB)."
+            )
+        )
+
+    async def ingest(
+        self,
+        identity: Identity,
+        ref: str | None = None,
+        content: str | None = None,
+    ) -> OutboundMessage:
+        """Propose semantic definitions extracted from a document.
+
+        Lists the candidates via the ``ingest_doc`` tool; confirmation buttons
+        are ``bot.py``'s job (V1 just surfaces the list, keeping the human in
+        the loop before anything enters the semantic layer).
+        """
+        ctx = await self._concierge.build_context(identity)
+        args: dict[str, str] = {}
+        if ref:
+            args["ref"] = ref
+        if content:
+            args["content"] = content
+        result = await ctx.tools.dispatch("ingest_doc", args, ctx, "cmd:ingest")
+        return OutboundMessage(text=result.content)
+
+
+def _fmt_ts(ts: float) -> str:
+    """Format an epoch timestamp as a short UTC string for audit listings."""
+    if not ts:
+        return "?"
+    return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
