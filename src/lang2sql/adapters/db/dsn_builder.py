@@ -10,7 +10,7 @@ test the assembly without a Discord runtime.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlsplit
 
 
 @dataclass
@@ -37,8 +37,13 @@ def _quote(s: str) -> str:
 
 
 def build_postgresql(*, host: str, port: str, database: str, user: str, password: str) -> ConnectionSpec:
+    # User may paste a full URL (e.g. "host/db?sslmode=require") into the host field.
+    # Extract just the hostname to avoid corrupting the assembled DSN.
+    parsed = urlsplit("//" + host)
+    clean_host = parsed.hostname or host
     p = int(port) if port else 5432
-    dsn = f"postgresql+psycopg://{_quote(user)}:{_quote(password)}@{host}:{p}/{database}"
+    suffix = "?sslmode=require" if clean_host.endswith(".neon.tech") else ""
+    dsn = f"postgresql+psycopg://{_quote(user)}:{_quote(password)}@{clean_host}:{p}/{database}{suffix}"
     return ConnectionSpec(dsn=dsn, extras={})
 
 

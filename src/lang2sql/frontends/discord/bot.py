@@ -148,27 +148,40 @@ class Lang2SQLBot(discord.Client):
         await interaction.response.defer(thinking=True)
         message = await coro
         content, file = _to_sendable(message)
-        await interaction.followup.send(content=content or "(empty)", file=file)
+        kwargs: dict = {"content": content or "(empty)"}
+        if file is not None:
+            kwargs["file"] = file
+        await interaction.followup.send(**kwargs)
 
     async def on_message(self, message: discord.Message) -> None:
         """Treat an @mention (or a reply inside a thread) as a free-form query."""
         if message.author == self.user:
             return
+        print(f"[DEBUG] message from {message.author}: content={message.content!r} mentions={[u.id for u in message.mentions]}")
         mentioned = self.user is not None and self.user.mentioned_in(message)
         in_thread = isinstance(message.channel, discord.Thread)
+        print(f"[DEBUG] mentioned={mentioned} in_thread={in_thread} self.user={self.user}")
         if not mentioned and not in_thread:
             return
 
         text = message.content
         if self.user is not None:
             text = text.replace(self.user.mention, "").strip()
+        print(f"[DEBUG] text after strip: {text!r}")
         if not text:
             return
 
         identity = to_identity(_message_context(message))
-        out = await self._handlers.query(identity, text)
-        content, file = _to_sendable(out)
-        await message.channel.send(content=content or "(empty)", file=file)
+        try:
+            out = await self._handlers.query(identity, text)
+            content, file = _to_sendable(out)
+            if content and len(content) > 1900:
+                content = content[:1900] + "\n…(truncated)"
+            await message.channel.send(content=content or "(empty)", file=file)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            await message.channel.send(content=f"❌ Error: {type(exc).__name__}: {exc}")
 
 
 def run() -> None:

@@ -22,6 +22,7 @@ from ...adapters.db import build_explorer
 from ...adapters.db.dsn_builder import assemble
 from ...core.identity import Identity
 from ...core.ports.frontend import OutboundMessage
+from ...core.types import Role
 from ...harness.loop import agent_loop
 from ...tenancy.concierge import ContextConcierge
 from .render import render_answer
@@ -43,7 +44,28 @@ class CommandHandlers:
         ctx = await self._concierge.build_context(identity, user_text=text)
         answer = await agent_loop(ctx, text)
         await self._concierge.store.save(identity.session_key(), ctx.session)
-        return render_answer(answer)
+
+        history = ctx.session.history()
+
+        sql_queries = [
+            tc.arguments["sql"]
+            for msg in history
+            if msg.role == Role.ASSISTANT and msg.tool_calls
+            for tc in msg.tool_calls
+            if tc.name == "run_sql" and "sql" in tc.arguments
+        ]
+        sql_results = [
+            msg.content
+            for msg in history
+            if msg.role == Role.TOOL and msg.name == "run_sql" and msg.content
+        ]
+
+        suffix = ""
+        if sql_queries:
+            suffix += "\n\n**SQL:**\n```sql\n" + "\n\n".join(sql_queries) + "\n```"
+        if sql_results:
+            suffix += "\n\n**결과:**\n```\n" + "\n\n".join(sql_results) + "\n```"
+        return render_answer(answer + suffix)
 
     async def define_metric(
         self,

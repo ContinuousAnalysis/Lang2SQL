@@ -11,8 +11,10 @@ actually called, so importing/wiring this in a no-key environment is fine.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from typing import Any, Sequence
@@ -27,7 +29,7 @@ class OpenAILLM:
 
     def __init__(
         self,
-        model: str = "gpt-4.1-mini",
+        model: str = "gpt-4o-mini",
         api_key: str | None = None,
         *,
         base_url: str = _DEFAULT_URL,
@@ -35,7 +37,8 @@ class OpenAILLM:
     ) -> None:
         self.model = model
         # Resolve lazily-ish: read env now, but tolerate absence until complete().
-        self._api_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
+        raw_key = api_key if api_key is not None else os.environ.get("OPENAI_API_KEY")
+        self._api_key = raw_key.strip() if raw_key else raw_key
         self._base_url = base_url
         self._timeout = timeout
 
@@ -54,7 +57,7 @@ class OpenAILLM:
         if tools:
             payload["tools"] = [_encode_tool(t) for t in tools]
 
-        raw = self._post(payload)
+        raw = await asyncio.to_thread(self._post, payload)
         return _decode_completion(raw)
 
     def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -81,6 +84,10 @@ class OpenAILLM:
             return json.loads(text)
         except (ValueError, TypeError) as exc:
             raise RuntimeError(f"OpenAI returned non-JSON response: {text[:200]!r}") from exc
+
+
+def _strip_thinking(text: str) -> str:
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
 def _encode_message(m: Message) -> dict[str, Any]:
@@ -141,7 +148,7 @@ def _decode_completion(raw: dict[str, Any]) -> Completion:
         )
 
     return Completion(
-        content=msg.get("content") or "",
+        content=_strip_thinking(msg.get("content") or ""),
         tool_calls=tool_calls,
         finish_reason=choice.get("finish_reason"),
     )
