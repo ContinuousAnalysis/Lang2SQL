@@ -42,23 +42,27 @@ class CommandHandlers:
         thread/DM continues the conversation (tiebreaker #4).
         """
         ctx = await self._concierge.build_context(identity, user_text=text)
+        pre_loop_len = len(ctx.session.history())
         answer = await agent_loop(ctx, text)
-        await self._concierge.store.save(identity.session_key(), ctx.session)
 
         history = ctx.session.history()
+        current_turn = history[pre_loop_len:]
 
         sql_queries = [
             tc.arguments["sql"]
-            for msg in history
+            for msg in current_turn
             if msg.role == Role.ASSISTANT and msg.tool_calls
             for tc in msg.tool_calls
             if tc.name == "run_sql" and "sql" in tc.arguments
         ]
         sql_results = [
             msg.content
-            for msg in history
+            for msg in current_turn
             if msg.role == Role.TOOL and msg.name == "run_sql" and msg.content
         ]
+
+        ctx.session.compress()
+        await self._concierge.store.save(identity.session_key(), ctx.session)
 
         suffix = ""
         if sql_queries:
@@ -170,6 +174,14 @@ class CommandHandlers:
                 "or just ask a question now."
             )
         )
+
+    async def enrich(self, identity: Identity, table: str = "", clear: bool = False) -> OutboundMessage:
+        """Run EnrichSchema tool: sample DB columns and LLM-infer descriptions."""
+        ctx = await self._concierge.build_context(identity)
+        result = await ctx.tools.dispatch(
+            "enrich_schema", {"table": table, "clear": clear}, ctx, "cmd:enrich"
+        )
+        return OutboundMessage(text=result.content)
 
     async def connect(self, identity: Identity, dsn: str) -> OutboundMessage:
         """V1 stub: stash a DB DSN keyed by guild/DM in the concierge kv store.

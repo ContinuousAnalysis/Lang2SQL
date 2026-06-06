@@ -155,12 +155,22 @@ class ContextConcierge:
             safety=self._safety,
             audit=self._audit,
             scope_resolver=self._scope_resolver,
+            store=self._store,
             max_turns=self._max_turns,
         )
 
 
 def _default_llm() -> LLMPort:
-    """OpenAI when a key is present, otherwise the offline FakeLLM."""
+    """Local vLLM/Ollama when LANG2SQL_LLM_BASE_URL is set, OpenAI when keyed, else FakeLLM."""
+    base_url = os.environ.get("LANG2SQL_LLM_BASE_URL")
+    if base_url:
+        model = os.environ.get("LANG2SQL_LLM_MODEL", "default")
+        # Local servers (vLLM, Ollama) speak OpenAI-compatible API; dummy key satisfies the header.
+        api_key = os.environ.get("OPENAI_API_KEY") or "local"
+        url = base_url.rstrip("/")
+        if not url.endswith("/chat/completions"):
+            url = url + "/v1/chat/completions"
+        return OpenAILLM(model=model, api_key=api_key, base_url=url)
     if os.environ.get("OPENAI_API_KEY"):
         return OpenAILLM()
     return FakeLLM()

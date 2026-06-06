@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
+from .row_limit import RowLimitLayer
 from .timeout import TimeoutLayer
 from .whitelist import WhitelistLayer
 
-__all__ = ["WhitelistLayer", "TimeoutLayer"]
+__all__ = ["WhitelistLayer", "RowLimitLayer", "TimeoutLayer"]

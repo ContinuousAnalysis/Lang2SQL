@@ -130,6 +130,15 @@ class SqliteStore:
         )
         self._conn.commit()
 
+    def kv_delete_prefix(self, scope: str, prefix: str) -> int:
+        """Delete all keys under scope that start with prefix. Returns count deleted."""
+        cur = self._conn.execute(
+            "DELETE FROM kv WHERE scope = ? AND key LIKE ?",
+            (scope, prefix + "%"),
+        )
+        self._conn.commit()
+        return cur.rowcount
+
 
 # -- Session (de)serialization ------------------------------------------
 

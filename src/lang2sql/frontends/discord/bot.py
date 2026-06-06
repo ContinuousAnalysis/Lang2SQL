@@ -102,8 +102,11 @@ class Lang2SQLBot(discord.Client):
         self._register_commands()
 
     async def setup_hook(self) -> None:
-        # Sync slash commands with Discord on startup.
-        await self.tree.sync()
+        # Sync only when LANG2SQL_SYNC_COMMANDS=true (e.g. after adding/removing commands).
+        # Skipping sync on every restart avoids Discord rate limits during dev.
+        if os.environ.get("LANG2SQL_SYNC_COMMANDS", "").lower() == "true":
+            await self.tree.sync()
+            print("[bot] slash commands synced")
 
     def _register_commands(self) -> None:
         tree = self.tree
@@ -134,6 +137,13 @@ class Lang2SQLBot(discord.Client):
         @tree.command(name="remember", description="Remember a fact for future turns")
         async def remember(interaction: discord.Interaction, text: str) -> None:
             await self._run(interaction, handlers.remember(to_identity(_interaction_context(interaction)), text))
+
+        @tree.command(name="enrich", description="LLM으로 DB 컬럼 메타데이터 자동 보강 (clear=True로 초기화)")
+        async def enrich(interaction: discord.Interaction, table: str = "", clear: bool = False) -> None:
+            await self._run(
+                interaction,
+                handlers.enrich(to_identity(_interaction_context(interaction)), table=table, clear=clear),
+            )
 
         @tree.command(name="semantic_show", description="Show definitions in effect here")
         async def semantic_show(interaction: discord.Interaction) -> None:
@@ -195,6 +205,7 @@ def run() -> None:
         raise RuntimeError(
             f"{TOKEN_ENV} is not set; export your Discord bot token to run the bot."
         )
-    handlers = CommandHandlers(ContextConcierge())
+    data_path = os.environ.get("LANG2SQL_DATA_PATH", "lang2sql_data.db")
+    handlers = CommandHandlers(ContextConcierge(path=data_path))
     client = Lang2SQLBot(handlers)
     client.run(token)

@@ -93,8 +93,12 @@ def _strip_thinking(text: str) -> str:
 def _encode_message(m: Message) -> dict[str, Any]:
     """Core :class:`Message` → an OpenAI chat message dict."""
     out: dict[str, Any] = {"role": m.role.value}
-    # OpenAI wants content present (may be null when only tool_calls are set).
-    out["content"] = m.content or None
+    # OpenAI allows null content only when tool_calls are present.
+    # For plain assistant messages (after session compress), force empty string.
+    if m.role == Role.ASSISTANT and not m.tool_calls:
+        out["content"] = m.content or ""
+    else:
+        out["content"] = m.content or None
     if m.role == Role.TOOL:
         out["tool_call_id"] = m.tool_call_id
         if m.name:

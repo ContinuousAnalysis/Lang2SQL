@@ -55,6 +55,10 @@ def build_explorer(
             token=extras.get("d1_token"),
         )
 
+    # Normalize bare postgresql:// → postgresql+psycopg:// (psycopg3 is installed).
+    if scheme == "postgresql":
+        connection = "postgresql+psycopg" + connection[len("postgresql"):]
+
     # Anything else is assumed to be a SQLAlchemy URL (driver loaded lazily).
     return SqlAlchemyExplorer(connection, schema=schema)
 
@@ -67,7 +71,8 @@ def explorer_from_env() -> ExplorerPort | None:
     """
     url = os.environ.get("LANG2SQL_DB_URL")
     if url:
-        return build_explorer(url, schema=os.environ.get("LANG2SQL_DB_SCHEMA"))
+        schema = os.environ.get("LANG2SQL_DB_SCHEMA") or None
+        return build_explorer(url, schema=schema)
 
     account = os.environ.get("CLOUDFLARE_D1_ACCOUNT_ID")
     database = os.environ.get("CLOUDFLARE_D1_DATABASE_ID")
