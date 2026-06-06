@@ -48,18 +48,23 @@ class CommandHandlers:
         history = ctx.session.history()
         current_turn = history[pre_loop_len:]
 
-        sql_queries = [
-            tc.arguments["sql"]
+        call_id_to_sql: dict[str, str] = {
+            tc.id: tc.arguments["sql"]
             for msg in current_turn
             if msg.role == Role.ASSISTANT and msg.tool_calls
             for tc in msg.tool_calls
             if tc.name == "run_sql" and "sql" in tc.arguments
-        ]
-        sql_results = [
-            msg.content
-            for msg in current_turn
-            if msg.role == Role.TOOL and msg.name == "run_sql" and msg.content
-        ]
+        }
+
+        sql_queries: list[str] = []
+        sql_results: list[str] = []
+        for msg in current_turn:
+            if msg.role != Role.TOOL or msg.name != "run_sql" or not msg.content:
+                continue
+            sql = call_id_to_sql.get(msg.tool_call_id or "")
+            if sql and ("row(s):" in msg.content or "(0 rows)" in msg.content):
+                sql_queries.append(sql)
+                sql_results.append(msg.content)
 
         ctx.session.compress()
         await self._concierge.store.save(identity.session_key(), ctx.session)

@@ -15,6 +15,7 @@ constructed and the token is read only inside :func:`run`.
 from __future__ import annotations
 
 import io
+import logging
 import os
 
 import discord
@@ -24,6 +25,8 @@ from ...core.ports.frontend import OutboundMessage
 from ...tenancy.concierge import ContextConcierge
 from .commands import CommandHandlers
 from .session_router import InteractionContext, to_identity
+
+logger = logging.getLogger(__name__)
 
 TOKEN_ENV = "DISCORD_BOT_TOKEN"
 
@@ -106,7 +109,7 @@ class Lang2SQLBot(discord.Client):
         # Skipping sync on every restart avoids Discord rate limits during dev.
         if os.environ.get("LANG2SQL_SYNC_COMMANDS", "").lower() == "true":
             await self.tree.sync()
-            print("[bot] slash commands synced")
+            logger.info("slash commands synced")
 
     def _register_commands(self) -> None:
         tree = self.tree
@@ -167,17 +170,14 @@ class Lang2SQLBot(discord.Client):
         """Treat an @mention (or a reply inside a thread) as a free-form query."""
         if message.author == self.user:
             return
-        print(f"[DEBUG] message from {message.author}: content={message.content!r} mentions={[u.id for u in message.mentions]}")
         mentioned = self.user is not None and self.user.mentioned_in(message)
         in_thread = isinstance(message.channel, discord.Thread)
-        print(f"[DEBUG] mentioned={mentioned} in_thread={in_thread} self.user={self.user}")
         if not mentioned and not in_thread:
             return
 
         text = message.content
         if self.user is not None:
             text = text.replace(self.user.mention, "").strip()
-        print(f"[DEBUG] text after strip: {text!r}")
         if not text:
             return
 
