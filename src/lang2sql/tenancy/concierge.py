@@ -18,7 +18,6 @@ from ..adapters.db.factory import build_explorer, explorer_from_env
 from ..adapters.db.postgres_explorer import PostgresExplorer
 from ..adapters.llm.fake import FakeLLM
 from ..adapters.llm.openai_ import OpenAILLM
-from ..adapters.storage.sqlite_semantic import SqliteSemanticStore
 from ..adapters.storage.sqlite_store import SqliteStore
 from ..core.identity import Identity
 from ..core.ports.audit import AuditPort
@@ -26,7 +25,6 @@ from ..core.ports.explorer import ExplorerPort
 from ..core.ports.llm import LLMPort
 from ..core.ports.safety import SafetyPipelinePort
 from ..core.ports.secrets import SecretsPort
-from ..core.ports.semantic_scope import ScopeResolverPort
 from ..harness.context import HarnessContext
 from ..harness.session import Session
 from ..harness.tool_registry import ToolRegistry
@@ -35,7 +33,6 @@ from ..memory import InjectAllRecall, InMemoryStore, ManualExtractor, MemoryServ
 from ..safety.pipeline import SafetyPipeline
 from ..tools import build_default_tools
 from .encrypted_secrets import EncryptedSecrets
-from .scope_resolver import ScopeResolver
 
 # DSN used for the V1 explorer stub when a scope has registered none yet.
 _DEFAULT_DSN = "postgresql://stub/v1"
@@ -52,27 +49,14 @@ class ContextConcierge:
         llm: LLMPort | None = None,
         explorer: ExplorerPort | None = None,
         safety: SafetyPipelinePort | None = None,
-        scope_resolver: ScopeResolverPort | None = None,
         secrets: SecretsPort | None = None,
         audit: AuditPort | None = None,
         max_turns: int = 8,
     ) -> None:
-        # ``path`` drives the default persistence backends; ``:memory:`` keeps
-        # tests isolated, a file path makes sessions/definitions/secrets durable.
         self._store = store if store is not None else SqliteStore(path)
-        # Audit + session persistence both ride the one sqlite store by default.
         self._llm = llm if llm is not None else _default_llm()
-        # Explorer precedence: explicit injection → env-configured real DB
-        # (LANG2SQL_DB_URL / Cloudflare D1) → the canned stub for offline dev.
         self._explorer = explorer or explorer_from_env() or PostgresExplorer(_DEFAULT_DSN)
         self._safety = safety if safety is not None else SafetyPipeline()
-        # Persistent semantic store by default so definitions survive restart.
-        self._scope_resolver = (
-            scope_resolver
-            if scope_resolver is not None
-            else ScopeResolver(SqliteSemanticStore(path))
-        )
-        # Secrets share the session/audit store's kv table (and sqlite file).
         self._secrets = (
             secrets if secrets is not None else EncryptedSecrets(self._store)
         )
@@ -98,11 +82,6 @@ class ContextConcierge:
     def secrets(self) -> SecretsPort:
         """Per-scope encrypted credential store (DSNs/API keys via ``/connect``)."""
         return self._secrets
-
-    @property
-    def scope_resolver(self) -> ScopeResolverPort:
-        """Federation resolver over the (by default persistent) semantic store."""
-        return self._scope_resolver
 
     def forget_explorer(self, scope: str) -> None:
         """Bust the cached explorer for ``scope`` (call after /setup updates a DSN)."""
@@ -154,7 +133,6 @@ class ContextConcierge:
             explorer=await self._explorer_for(identity),
             safety=self._safety,
             audit=self._audit,
-            scope_resolver=self._scope_resolver,
             store=self._store,
             max_turns=self._max_turns,
         )

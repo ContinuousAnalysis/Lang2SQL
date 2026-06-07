@@ -1,115 +1,86 @@
-"""Tests for the semantic federation layer (★④).
+"""Tests for KV-backed semantic federation (★④).
 
-Plain functions named ``test_*`` — runnable without pytest via the validation
-one-liner in the spawn brief.
+Verifies that the KV store correctly implements narrow→wide scope resolution,
+matching the original ScopeResolver contract.
 """
 
 from __future__ import annotations
 
-import asyncio
-
-from lang2sql.core.identity import Identity, Scope, ScopeLevel
-from lang2sql.semantic import (
-    Metric,
-    SemanticEntry,
-    SemanticKind,
-    SemanticLayer,
-    SemanticStore,
-    merge_scoped,
+from lang2sql.adapters.storage.sqlite_store import SqliteStore
+from lang2sql.tools.semantic_federation import (
+    FedEntry,
+    _kv_key,
+    _render_effective,
+    build_prompt_section,
 )
-from lang2sql.tenancy.scope_resolver import ScopeResolver
 
 
-def test_render_empty_is_blank() -> None:
-    assert SemanticLayer().render() == ""
+def _store_with_entries(entries: list[tuple[str, str, str, str]]) -> SqliteStore:
+    """Helper: create an in-memory store and populate KV with FedEntry items.
+
+    Each tuple is (scope, term, layer, entity, definition) — scope is the guild id.
+    """
+    store = SqliteStore()
+    for scope, term, layer, entity, definition in entries:  # type: ignore[misc]
+        entry = FedEntry(term=term, layer=layer, entity=entity, definition=definition)
+        store.kv_set(scope, _kv_key(term, layer, entity), entry.to_json())
+    return store
 
 
-def test_render_lists_entries() -> None:
-    layer = SemanticLayer(
-        [
-            SemanticEntry(SemanticKind.METRIC, "active_user", "30d login"),
-            SemanticEntry(
-                SemanticKind.DIMENSION, "region", "billing country", applies_to="users"
-            ),
-        ]
-    )
-    rendered = layer.render()
-    assert "**active_user** [metric]: 30d login" in rendered
-    assert "**region** [dimension]: billing country (applies to users)" in rendered
-    # one bullet line per entry
-    assert len(rendered.splitlines()) == 2
-    assert all(line.startswith("- ") for line in rendered.splitlines())
+def test_channel_overrides_guild() -> None:
+    store = SqliteStore()
+    scope = "g1"
+    store.kv_set(scope, _kv_key("active_user", "guild", ""), FedEntry("active_user", "guild", "", "30d login").to_json())
+    store.kv_set(scope, _kv_key("active_user", "channel", "c1"), FedEntry("active_user", "channel", "c1", "7d core action").to_json())
+
+    rendered = _render_effective(store, scope, "c1", "u1")
+    assert "7d core action" in rendered
+    assert "30d login" not in rendered
 
 
-def test_layer_add_replaces_same_name() -> None:
-    layer = SemanticLayer([SemanticEntry(SemanticKind.METRIC, "rev", "gross")])
-    layer.add(SemanticEntry(SemanticKind.METRIC, "rev", "net"))
-    assert len(layer.entries) == 1
-    assert layer.lookup("rev").definition == "net"
+def test_guild_fills_gap_when_channel_missing() -> None:
+    store = SqliteStore()
+    scope = "g1"
+    store.kv_set(scope, _kv_key("revenue", "guild", ""), FedEntry("revenue", "guild", "", "net revenue").to_json())
+
+    rendered = _render_effective(store, scope, "c1", "u1")
+    assert "net revenue" in rendered
 
 
-def test_scoped_merge_narrow_wins() -> None:
-    """active_user defined at channel must override the guild definition."""
-    guild = Scope(ScopeLevel.GUILD, "g1")
-    channel = Scope(ScopeLevel.CHANNEL, "c1")
-    merged = merge_scoped(
-        [
-            (channel, [Metric(name="active_user", definition="7d core action")]),
-            (guild, [Metric(name="active_user", definition="30d login")]),
-        ]
-    )
-    assert merged.lookup("active_user").definition == "7d core action"
+def test_member_overrides_channel_and_guild() -> None:
+    store = SqliteStore()
+    scope = "g1"
+    store.kv_set(scope, _kv_key("active_user", "guild", ""), FedEntry("active_user", "guild", "", "guild def").to_json())
+    store.kv_set(scope, _kv_key("active_user", "channel", "c1"), FedEntry("active_user", "channel", "c1", "channel def").to_json())
+    store.kv_set(scope, _kv_key("active_user", "member", "u1"), FedEntry("active_user", "member", "u1", "member def").to_json())
+
+    rendered = _render_effective(store, scope, "c1", "u1")
+    assert "member def" in rendered
+    assert "channel def" not in rendered
+    assert "guild def" not in rendered
 
 
-def test_scoped_merge_wider_fills_gaps() -> None:
-    guild = Scope(ScopeLevel.GUILD, "g1")
-    channel = Scope(ScopeLevel.CHANNEL, "c1")
-    merged = merge_scoped(
-        [
-            (channel, [Metric(name="active_user", definition="7d")]),
-            (guild, [Metric(name="revenue", definition="net")]),
-        ]
-    )
-    assert merged.lookup("active_user").definition == "7d"
-    assert merged.lookup("revenue").definition == "net"
+def test_two_channels_isolated() -> None:
+    store = SqliteStore()
+    scope = "g1"
+    store.kv_set(scope, _kv_key("active_user", "channel", "mkt"), FedEntry("active_user", "channel", "mkt", "30d login").to_json())
+    store.kv_set(scope, _kv_key("active_user", "channel", "fin"), FedEntry("active_user", "channel", "fin", "paid subscriber").to_json())
+
+    mkt = _render_effective(store, scope, "mkt", "u1")
+    fin = _render_effective(store, scope, "fin", "u2")
+    assert "30d login" in mkt
+    assert "paid subscriber" not in mkt
+    assert "paid subscriber" in fin
+    assert "30d login" not in fin
 
 
-def test_resolver_effective_layer_guild_channel() -> None:
-    store = SemanticStore()
-    resolver = ScopeResolver(store)
-    identity = Identity(user_id="u1", guild_id="g1", channel_id="c1")
-
-    async def scenario() -> SemanticLayer:
-        await resolver.define(
-            Scope(ScopeLevel.GUILD, "g1"),
-            Metric(name="active_user", definition="30d login"),
-        )
-        await resolver.define(
-            Scope(ScopeLevel.GUILD, "g1"),
-            Metric(name="revenue", definition="gross"),
-        )
-        # channel override of active_user only
-        await resolver.define(
-            Scope(ScopeLevel.CHANNEL, "c1"),
-            Metric(name="active_user", definition="7d core action"),
-        )
-        return await resolver.effective_layer(identity)
-
-    layer = asyncio.run(scenario())
-    assert layer.lookup("active_user").definition == "7d core action"  # channel wins
-    assert layer.lookup("revenue").definition == "gross"  # inherited from guild
+def test_empty_store_returns_no_terms() -> None:
+    store = SqliteStore()
+    rendered = _render_effective(store, "g1", "c1", "u1")
+    assert "등록된 용어가 없습니다" in rendered
 
 
-def test_resolver_entries_at_no_inheritance() -> None:
-    store = SemanticStore()
-    resolver = ScopeResolver(store)
-
-    async def scenario() -> list[SemanticEntry]:
-        await resolver.define(
-            Scope(ScopeLevel.GUILD, "g1"),
-            Metric(name="revenue", definition="gross"),
-        )
-        # channel has nothing of its own
-        return await resolver.entries_at(Scope(ScopeLevel.CHANNEL, "c1"))
-
-    assert asyncio.run(scenario()) == []
+def test_build_prompt_section_includes_ambiguous_term_policy() -> None:
+    store = SqliteStore()
+    section = build_prompt_section(store, "g1", "c1", "u1")
+    assert "Ambiguous Term Policy" in section

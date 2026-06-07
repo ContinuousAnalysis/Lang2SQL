@@ -4,9 +4,9 @@
 Run:  .venv/bin/python bench/ecommerce_demo.py
 
 This is the study-group demo. It exercises the *real* V1 code paths
-(``ContextConcierge`` + scope resolver + the canned Postgres explorer + the
-offline ``FakeLLM``) to show three things end-to-end without a token or a live
-database:
+(``ContextConcierge`` + KV-backed federation + the canned Postgres explorer +
+the offline ``FakeLLM``) to show three things end-to-end without a token or a
+live database:
 
   Section 1 — define three e-commerce metrics in a channel and read them back.
   Section 2 — ★④ semantic federation: the *same* term ``active_user`` carries
@@ -22,13 +22,13 @@ from __future__ import annotations
 
 import asyncio
 
+from lang2sql.adapters.storage.sqlite_store import SqliteStore
 from lang2sql.core.identity import Identity
 from lang2sql.core.ports.safety import SafetyContext, Verdict
 from lang2sql.harness.loop import agent_loop
 from lang2sql.safety.pipeline import SafetyPipeline
-from lang2sql.semantic.types import Metric
 from lang2sql.tenancy.concierge import ContextConcierge
-from lang2sql.tenancy.scope_resolver import ScopeResolver
+from lang2sql.tools.semantic_federation import FedEntry, _kv_key, _render_effective
 
 # Stable IDs for the demo guild and its two channels.
 GUILD = "acme-shop"
@@ -50,20 +50,13 @@ def _finance_identity() -> Identity:
     return Identity(user_id="evan", guild_id=GUILD, channel_id=CH_FINANCE)
 
 
+def _define_term(store: SqliteStore, scope: str, term: str, layer: str, entity: str, definition: str) -> None:
+    entry = FedEntry(term=term, layer=layer, entity=entity, definition=definition)
+    store.kv_set(scope, _kv_key(term, layer, entity), entry.to_json())
+
+
 async def section_0_harness(concierge: ContextConcierge) -> None:
-    """Drive one full agent turn through the assembled harness (offline).
-
-    This is the *wiring* proof, not an intelligence proof: ``ContextConcierge``
-    picks the offline FakeLLM (no OPENAI_API_KEY), starts a session, and wires
-    the canned Postgres explorer + six tools into a ``HarnessContext`` that
-    ``agent_loop`` drives LLM → tool → LLM to a final answer. No network, no
-    real database.
-
-    The FakeLLM is a deterministic stub: it blindly calls the first tool
-    (``run_sql``) with placeholder args, so its turn ends up *demonstrating the
-    safety gate* rather than answering the question. With OPENAI_API_KEY set,
-    the same loop calls gpt-4.1-mini instead — zero other code changes.
-    """
+    """Drive one full agent turn through the assembled harness (offline)."""
     _hr("SECTION 0 — assembled harness runs one turn (ContextConcierge + FakeLLM)")
 
     ident = _marketing_identity()
@@ -80,64 +73,62 @@ async def section_0_harness(concierge: ContextConcierge) -> None:
     print("  ★① behaviour Section 3 isolates.")
 
 
-async def section_1_define_metrics(resolver: ScopeResolver) -> None:
+async def section_1_define_metrics(store: SqliteStore) -> None:
     """Define three e-commerce metrics in #marketing and read them back."""
     _hr("SECTION 1 — define three metrics (★① business-context learning)")
 
     ident = _marketing_identity()
-    scope = ident.default_write_scope()  # current channel by default
-    print(f"Writing to default scope for this channel: {scope}\n")
+    channel_id = ident.channel_id or ""
+    scope = ident.guild_id or GUILD
+    print(f"Writing to channel layer for #{CH_MARKETING} (channel_id={channel_id})\n")
 
     metrics = [
-        Metric("total_revenue", "SUM(orders.amount) WHERE status != 'cancelled'"),
-        Metric("aov", "total_revenue / COUNT(DISTINCT orders.id)"),
-        Metric("paid_orders", "COUNT(*) FROM orders WHERE status = 'paid'"),
+        ("total_revenue", "SUM(orders.amount) WHERE status != 'cancelled'"),
+        ("aov", "total_revenue / COUNT(DISTINCT orders.id)"),
+        ("paid_orders", "COUNT(*) FROM orders WHERE status = 'paid'"),
     ]
-    for m in metrics:
-        await resolver.define(scope, m)
-        print(f"  defined {m.name:>14}  =  {m.definition}")
+    for name, definition in metrics:
+        _define_term(store, scope, name, "channel", channel_id, definition)
+        print(f"  defined {name:>14}  =  {definition}")
 
-    layer = await resolver.effective_layer(ident)
-    print(f"\nEffective layer for #{CH_MARKETING} now holds "
-          f"{len(layer.entries)} definition(s):")
-    print(layer.render())
+    rendered = _render_effective(store, scope, channel_id, ident.user_id)
+    lines = [l for l in rendered.splitlines() if l.startswith("-")]
+    print(f"\nEffective layer for #{CH_MARKETING} now holds {len(lines)} definition(s):")
+    print(rendered)
 
 
-async def section_2_federation(resolver: ScopeResolver) -> None:
+async def section_2_federation(store: SqliteStore) -> None:
     """Same term, two channels, two definitions — no conflict (★④)."""
     _hr("SECTION 2 — semantic federation: one term, two definitions (★④)")
 
-    # #marketing defines active_user one way ...
     mkt = _marketing_identity()
-    await resolver.define(
-        mkt.default_write_scope(),
-        Metric("active_user", "user with a login event in the last 30 days"),
-    )
-    # ... and #finance defines the SAME name a different way.
     fin = _finance_identity()
-    await resolver.define(
-        fin.default_write_scope(),
-        Metric("active_user", "user with an active paid subscription"),
-    )
+
+    _define_term(store, GUILD, "active_user", "channel", CH_MARKETING,
+                 "user with a login event in the last 30 days")
+    _define_term(store, GUILD, "active_user", "channel", CH_FINANCE,
+                 "user with an active paid subscription")
 
     print("Defined 'active_user' independently in two channels.\n")
     print("Now resolving the *effective* definition each channel sees")
     print("by walking its scope chain (most specific scope wins):\n")
 
-    mkt_layer = await resolver.effective_layer(mkt)
-    fin_layer = await resolver.effective_layer(fin)
-    mkt_def = mkt_layer.lookup("active_user")
-    fin_def = fin_layer.lookup("active_user")
+    mkt_rendered = _render_effective(store, GUILD, CH_MARKETING, mkt.user_id)
+    fin_rendered = _render_effective(store, GUILD, CH_FINANCE, fin.user_id)
 
-    print(f"  #{CH_MARKETING:<10} active_user → {mkt_def.definition}")
-    print(f"  #{CH_FINANCE:<10} active_user → {fin_def.definition}")
+    mkt_line = next((l for l in mkt_rendered.splitlines() if "active_user" in l), "")
+    fin_line = next((l for l in fin_rendered.splitlines() if "active_user" in l), "")
+    mkt_def = mkt_line.split(": ", 1)[-1] if ": " in mkt_line else ""
+    fin_def = fin_line.split(": ", 1)[-1] if ": " in fin_line else ""
 
-    assert mkt_def.definition != fin_def.definition
+    print(f"  #{CH_MARKETING:<10} active_user → {mkt_def}")
+    print(f"  #{CH_FINANCE:<10} active_user → {fin_def}")
+
+    assert mkt_def != fin_def
     print("\n  ✅ Same term, two live definitions, zero conflict.")
     print("     Each channel is its own branch in the federation tree;")
     print("     neither overwrote the other. (Wren's single MDL cannot do this.)")
 
-    # Show the scope chain that produced the marketing answer.
     chain = " → ".join(str(s) for s in mkt.scope_chain())
     print(f"\n  #{CH_MARKETING} resolution order: {chain}")
     print("  Lookup stops at the first scope that defines the name (CHANNEL),")
@@ -173,14 +164,13 @@ def section_3_safety(pipeline: SafetyPipeline) -> None:
 async def main() -> None:
     print("Lang2SQL v4.1 — e-commerce demo (offline: FakeLLM, canned PG, in-memory)")
 
-    # One shared resolver so federation state persists across sections 1 and 2.
-    resolver = ScopeResolver()
+    store = SqliteStore()
     pipeline = SafetyPipeline()
     concierge = ContextConcierge()
 
     await section_0_harness(concierge)
-    await section_1_define_metrics(resolver)
-    await section_2_federation(resolver)
+    await section_1_define_metrics(store)
+    await section_2_federation(store)
     section_3_safety(pipeline)
 
     _hr("DONE")

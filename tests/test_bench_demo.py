@@ -1,8 +1,9 @@
 """Smoke test: the bench demo runs clean and shows its headline behaviours.
 
 Guards the study-group demo against drift in the modules it exercises
-(ContextConcierge, ScopeResolver, SafetyPipeline). Runs the demo's ``main()``
-in-process and asserts the federation + safety claims it prints are real.
+(ContextConcierge, KV-backed federation, SafetyPipeline). Runs the demo's
+``main()`` in-process and asserts the federation + safety claims it prints
+are real.
 """
 
 from __future__ import annotations
@@ -10,8 +11,6 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 from pathlib import Path
-
-import pytest
 
 _DEMO = Path(__file__).resolve().parent.parent / "bench" / "ecommerce_demo.py"
 
@@ -40,22 +39,22 @@ def test_demo_runs_clean(capsys):
 
 
 def test_demo_federation_resolves_distinct_definitions():
-    """Reach into the demo's building blocks directly (no printing)."""
+    """Reach into the demo's KV building blocks directly (no printing)."""
     demo = _load_demo()
-    from lang2sql.semantic.types import Metric
-    from lang2sql.tenancy.scope_resolver import ScopeResolver
+    from lang2sql.adapters.storage.sqlite_store import SqliteStore
+    from lang2sql.tools.semantic_federation import _render_effective
 
-    async def _run():
-        resolver = ScopeResolver()
-        mkt = demo._marketing_identity()
-        fin = demo._finance_identity()
-        await resolver.define(mkt.default_write_scope(), Metric("active_user", "30d login"))
-        await resolver.define(fin.default_write_scope(), Metric("active_user", "paid sub"))
-        mkt_layer = await resolver.effective_layer(mkt)
-        fin_layer = await resolver.effective_layer(fin)
-        return mkt_layer.lookup("active_user").definition, fin_layer.lookup("active_user").definition
+    store = SqliteStore()
+    mkt = demo._marketing_identity()
+    fin = demo._finance_identity()
 
-    mkt_def, fin_def = asyncio.run(_run())
-    assert mkt_def == "30d login"
-    assert fin_def == "paid sub"
-    assert mkt_def != fin_def
+    demo._define_term(store, demo.GUILD, "active_user", "channel", demo.CH_MARKETING, "30d login")
+    demo._define_term(store, demo.GUILD, "active_user", "channel", demo.CH_FINANCE, "paid sub")
+
+    mkt_rendered = _render_effective(store, demo.GUILD, demo.CH_MARKETING, mkt.user_id)
+    fin_rendered = _render_effective(store, demo.GUILD, demo.CH_FINANCE, fin.user_id)
+
+    assert "30d login" in mkt_rendered
+    assert "paid sub" not in mkt_rendered
+    assert "paid sub" in fin_rendered
+    assert "30d login" not in fin_rendered

@@ -49,7 +49,7 @@ def test_build_context_populates_llm_and_session() -> None:
         assert ctx.session.identity == identity
         assert ctx.explorer is not None
         assert ctx.safety is not None
-        assert ctx.scope_resolver is not None
+        assert ctx.store is not None
         assert ctx.audit is not None
     finally:
         if saved is not None:

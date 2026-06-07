@@ -27,12 +27,6 @@ Rules:
 async def build_system_prompt(ctx: HarnessContext) -> str:
     parts: list[str] = [_BASE]
 
-    if ctx.scope_resolver is not None:
-        layer = await ctx.scope_resolver.effective_layer(ctx.identity)
-        rendered = layer.render() if layer is not None else ""
-        if rendered:
-            parts.append("## Semantic layer (effective for this scope)\n" + rendered)
-
     if ctx.explorer is not None:
         tables = await ctx.explorer.list_tables()
         if tables:

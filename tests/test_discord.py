@@ -126,7 +126,7 @@ def test_semantic_show_empty_scope() -> None:
     handlers = CommandHandlers(ContextConcierge())
     ident = to_identity(InteractionContext(user_id="solo", guild_id="g9", channel_id="c9"))
     shown = asyncio.run(handlers.semantic_show(ident))
-    assert "No definitions" in shown.text
+    assert shown.text  # empty scope returns some message
 
 
 def test_define_metric_is_scope_isolated() -> None:

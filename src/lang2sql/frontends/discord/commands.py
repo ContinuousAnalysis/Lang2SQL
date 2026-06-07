@@ -103,15 +103,15 @@ class CommandHandlers:
         return OutboundMessage(text=result.content)
 
     async def semantic_show(self, identity: Identity) -> OutboundMessage:
-        """Show the effective semantic layer for this scope chain."""
+        """Show the effective semantic layer for this scope chain (KV-backed)."""
         ctx = await self._concierge.build_context(identity)
-        if ctx.scope_resolver is None:
+        if ctx.store is None:
             return OutboundMessage(text="Semantic layer unavailable.")
-        layer = await ctx.scope_resolver.effective_layer(identity)
-        rendered = layer.render()
-        if not rendered:
-            return OutboundMessage(text="No definitions apply in this scope yet.")
-        return OutboundMessage(text=f"Definitions in effect here:\n{rendered}")
+        from ...tools.semantic_federation import _render_effective
+        scope = identity.guild_id or f"dm:{identity.user_id}"
+        channel_id = identity.thread_id or identity.channel_id or ""
+        rendered = _render_effective(ctx.store, scope, channel_id, identity.user_id)
+        return OutboundMessage(text=rendered)
 
     async def audit_me(self, identity: Identity) -> OutboundMessage:
         """List the caller's recent audited actions, newest first."""

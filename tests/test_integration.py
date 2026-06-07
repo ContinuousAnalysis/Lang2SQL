@@ -49,14 +49,16 @@ def test_run_sql_tolerates_bad_limit():
 
 
 def test_define_metric_is_scope_local():
+    from lang2sql.tools.semantic_federation import _render_effective
     ident, ctx = _ctx()
     asyncio.run(DefineMetric().run({"name": "active_user", "definition": "30d login"}, ctx))
-    layer = asyncio.run(ctx.scope_resolver.effective_layer(ident))
-    assert layer.lookup("active_user") is not None
-    # a different channel does not see it
-    other = Identity(user_id="u1", guild_id="g1", channel_id="c-fin")
-    other_layer = asyncio.run(ctx.scope_resolver.effective_layer(other))
-    assert other_layer.lookup("active_user") is None
+    scope = ident.guild_id or f"dm:{ident.user_id}"
+    channel_id = ident.channel_id or ""
+    rendered = _render_effective(ctx.store, scope, channel_id, ident.user_id)
+    assert "active_user" in rendered
+    # a different channel does not see this channel-level definition
+    other_rendered = _render_effective(ctx.store, scope, "c-fin", "u1")
+    assert "active_user" not in other_rendered
 
 
 def test_safety_pipeline_on_context():

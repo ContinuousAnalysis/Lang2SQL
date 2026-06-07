@@ -19,7 +19,6 @@ from ..core.ports.audit import AuditPort
 from ..core.ports.explorer import ExplorerPort
 from ..core.ports.llm import LLMPort
 from ..core.ports.safety import SafetyPipelinePort
-from ..core.ports.semantic_scope import ScopeResolverPort
 from .session import Session
 from .tool_registry import ToolRegistry
 
@@ -33,6 +32,5 @@ class HarnessContext:
     explorer: ExplorerPort | None = None
     safety: SafetyPipelinePort | None = None
     audit: AuditPort | None = None
-    scope_resolver: ScopeResolverPort | None = None
     store: SqliteStore | None = None
     max_turns: int = 8
