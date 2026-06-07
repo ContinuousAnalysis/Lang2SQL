@@ -18,9 +18,6 @@ from .semantic_federation import FedEntry, _kv_key
 if TYPE_CHECKING:
     from ..harness.context import HarnessContext
 
-_SEMFED_PREFIX = "cterm"
-
-
 class DefineMetric:
     @property
     def spec(self) -> ToolSpec:
@@ -60,7 +57,7 @@ class DefineMetric:
             term=name,
             layer=layer,
             entity=entity,
-            definition=f"[{kind}] {definition}",
+            definition=definition,
             inferred=False,
         )
         ctx.store.kv_set(kv_scope, _kv_key(name, layer, entity), entry.to_json())
@@ -79,7 +76,10 @@ class DefineMetric:
         channel_id = ctx.identity.thread_id or ctx.identity.channel_id or ""
         if requested == "guild":
             return "guild", ""
-        return "channel", channel_id
+        if channel_id:
+            return "channel", channel_id
+        # No channel context (e.g. DM) — store at guild level to remain visible
+        return "guild", ""
 
     @staticmethod
     def _scope_obj(layer: str, entity: str, ctx: "HarnessContext") -> Scope:

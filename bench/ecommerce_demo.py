@@ -28,7 +28,7 @@ from lang2sql.core.ports.safety import SafetyContext, Verdict
 from lang2sql.harness.loop import agent_loop
 from lang2sql.safety.pipeline import SafetyPipeline
 from lang2sql.tenancy.concierge import ContextConcierge
-from lang2sql.tools.semantic_federation import FedEntry, _kv_key, _render_effective
+from lang2sql.tools.semantic_federation import FedEntry, _kv_key, _render_effective, _load_all, _resolve_term
 
 # Stable IDs for the demo guild and its two channels.
 GUILD = "acme-shop"
@@ -116,15 +116,20 @@ async def section_2_federation(store: SqliteStore) -> None:
     mkt_rendered = _render_effective(store, GUILD, CH_MARKETING, mkt.user_id)
     fin_rendered = _render_effective(store, GUILD, CH_FINANCE, fin.user_id)
 
-    mkt_line = next((l for l in mkt_rendered.splitlines() if "active_user" in l), "")
-    fin_line = next((l for l in fin_rendered.splitlines() if "active_user" in l), "")
-    mkt_def = mkt_line.split(": ", 1)[-1] if ": " in mkt_line else ""
-    fin_def = fin_line.split(": ", 1)[-1] if ": " in fin_line else ""
+    # Read definitions directly from the store — don't parse rendered display text
+    by_term = _load_all(store, GUILD)
+    entries = by_term.get("active_user", [])
+    mkt_raw = store.kv_get(GUILD, _kv_key("active_user", "channel", CH_MARKETING))
+    fin_raw = store.kv_get(GUILD, _kv_key("active_user", "channel", CH_FINANCE))
+    mkt_def = FedEntry.from_json(mkt_raw).definition if mkt_raw else ""
+    fin_def = FedEntry.from_json(fin_raw).definition if fin_raw else ""
 
     print(f"  #{CH_MARKETING:<10} active_user → {mkt_def}")
     print(f"  #{CH_FINANCE:<10} active_user → {fin_def}")
 
-    assert mkt_def != fin_def
+    assert mkt_def and fin_def and mkt_def != fin_def, (
+        f"Federation failed: mkt_def={mkt_def!r}, fin_def={fin_def!r}"
+    )
     print("\n  ✅ Same term, two live definitions, zero conflict.")
     print("     Each channel is its own branch in the federation tree;")
     print("     neither overwrote the other. (Wren's single MDL cannot do this.)")
