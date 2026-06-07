@@ -139,22 +139,17 @@ class Lang2SQLBot(discord.Client):
                 handlers.enrich(to_identity(_interaction_context(interaction)), table=table, clear=clear),
             )
 
-        @tree.command(name="term_custom", description="비즈니스 용어 등록·조회·삭제 (조직/팀/개인 범위)")
+        @tree.command(name="term_custom", description="비즈니스 용어 등록·조회·삭제 (action: show / remove, term: 용어명)")
         async def term_custom(
             interaction: discord.Interaction,
-            remove: str = "",
-            list_all: bool = False,
+            action: str = "",
+            term: str = "",
         ) -> None:
-            if list_all:
-                await self._run(
-                    interaction,
-                    handlers.term_custom(to_identity(_interaction_context(interaction)), list_all=True),
-                )
-            elif remove:
-                await self._run(
-                    interaction,
-                    handlers.term_custom(to_identity(_interaction_context(interaction)), term=remove, remove=True),
-                )
+            ident = to_identity(_interaction_context(interaction))
+            if action == "show":
+                await self._run(interaction, handlers.term_custom(ident, list_all=True))
+            elif action == "remove":
+                await self._run(interaction, handlers.term_custom(ident, term=term, remove=True))
             else:
                 from .term_wizard import start_term_add_flow
                 await start_term_add_flow(interaction, handlers, _interaction_context)
@@ -170,10 +165,6 @@ class Lang2SQLBot(discord.Client):
                 interaction,
                 handlers.org_setup(to_identity(_interaction_context(interaction)), org=org, team=team, clear=clear),
             )
-
-        @tree.command(name="semantic_show", description="Show definitions in effect here")
-        async def semantic_show(interaction: discord.Interaction) -> None:
-            await self._run(interaction, handlers.semantic_show(to_identity(_interaction_context(interaction))))
 
         @tree.command(name="audit_me", description="Show your recent activity")
         async def audit_me(interaction: discord.Interaction) -> None:

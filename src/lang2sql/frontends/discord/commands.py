@@ -82,17 +82,6 @@ class CommandHandlers:
         result = await ctx.tools.dispatch("remember", {"text": text}, ctx, "cmd:remember")
         return OutboundMessage(text=result.content)
 
-    async def semantic_show(self, identity: Identity) -> OutboundMessage:
-        """Show the effective semantic layer for this scope chain (KV-backed)."""
-        ctx = await self._concierge.build_context(identity)
-        if ctx.store is None:
-            return OutboundMessage(text="Semantic layer unavailable.")
-        from ...tools.semantic_federation import _render_effective
-        scope = identity.guild_id or f"dm:{identity.user_id}"
-        channel_id = identity.thread_id or identity.channel_id or ""
-        rendered = _render_effective(ctx.store, scope, channel_id, identity.user_id)
-        return OutboundMessage(text=rendered)
-
     async def audit_me(self, identity: Identity) -> OutboundMessage:
         """List the caller's recent audited actions, newest first."""
         ctx = await self._concierge.build_context(identity)

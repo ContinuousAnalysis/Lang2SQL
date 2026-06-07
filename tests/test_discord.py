@@ -105,7 +105,7 @@ def test_render_many_text_lines_attaches() -> None:
 # -- CommandHandlers (real in-memory concierge) ---------------------------
 
 
-def test_term_custom_then_semantic_show() -> None:
+def test_term_custom_then_list() -> None:
     handlers = CommandHandlers(ContextConcierge())
     ident = to_identity(
         InteractionContext(user_id="u1", guild_id="g1", channel_id="c1")
@@ -113,7 +113,7 @@ def test_term_custom_then_semantic_show() -> None:
 
     async def scenario() -> tuple[str, str]:
         defined = await handlers.term_custom(ident, term="active_user", definition="logged in within 30 days", layer="channel")
-        shown = await handlers.semantic_show(ident)
+        shown = await handlers.term_custom(ident, list_all=True)
         return defined.text, shown.text
 
     defined_text, shown_text = asyncio.run(scenario())
@@ -122,10 +122,10 @@ def test_term_custom_then_semantic_show() -> None:
     assert "logged in within 30 days" in shown_text
 
 
-def test_semantic_show_empty_scope() -> None:
+def test_term_custom_list_empty_scope() -> None:
     handlers = CommandHandlers(ContextConcierge())
     ident = to_identity(InteractionContext(user_id="solo", guild_id="g9", channel_id="c9"))
-    shown = asyncio.run(handlers.semantic_show(ident))
+    shown = asyncio.run(handlers.term_custom(ident, list_all=True))
     assert shown.text  # empty scope returns some message
 
 
@@ -137,7 +137,7 @@ def test_term_custom_is_scope_isolated() -> None:
 
     async def scenario() -> str:
         await handlers.term_custom(marketing, term="active_user", definition="30d login", layer="channel")
-        return (await handlers.semantic_show(product)).text
+        return (await handlers.term_custom(product, list_all=True)).text
 
     assert "active_user" not in asyncio.run(scenario())
 
