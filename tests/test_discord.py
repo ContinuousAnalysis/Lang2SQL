@@ -105,14 +105,14 @@ def test_render_many_text_lines_attaches() -> None:
 # -- CommandHandlers (real in-memory concierge) ---------------------------
 
 
-def test_define_metric_then_semantic_show() -> None:
+def test_term_custom_then_semantic_show() -> None:
     handlers = CommandHandlers(ContextConcierge())
     ident = to_identity(
         InteractionContext(user_id="u1", guild_id="g1", channel_id="c1")
     )
 
     async def scenario() -> tuple[str, str]:
-        defined = await handlers.define_metric(ident, "active_user", "logged in within 30 days")
+        defined = await handlers.term_custom(ident, term="active_user", definition="logged in within 30 days", layer="channel")
         shown = await handlers.semantic_show(ident)
         return defined.text, shown.text
 
@@ -129,14 +129,14 @@ def test_semantic_show_empty_scope() -> None:
     assert shown.text  # empty scope returns some message
 
 
-def test_define_metric_is_scope_isolated() -> None:
+def test_term_custom_is_scope_isolated() -> None:
     """A channel definition must not leak into a different channel (federation)."""
     handlers = CommandHandlers(ContextConcierge())
     marketing = to_identity(InteractionContext(user_id="u1", guild_id="g1", channel_id="mkt"))
     product = to_identity(InteractionContext(user_id="u1", guild_id="g1", channel_id="prd"))
 
     async def scenario() -> str:
-        await handlers.define_metric(marketing, "active_user", "30d login")
+        await handlers.term_custom(marketing, term="active_user", definition="30d login", layer="channel")
         return (await handlers.semantic_show(product)).text
 
     assert "active_user" not in asyncio.run(scenario())

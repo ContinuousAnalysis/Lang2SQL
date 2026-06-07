@@ -76,26 +76,6 @@ class CommandHandlers:
             suffix += "\n\n**결과:**\n```\n" + "\n\n".join(sql_results) + "\n```"
         return render_answer(answer + suffix)
 
-    async def define_metric(
-        self,
-        identity: Identity,
-        name: str,
-        definition: str,
-        scope: str | None = None,
-    ) -> OutboundMessage:
-        """Register one definition at the current (or requested) scope.
-
-        Delegates to the ctx-aware ``define_metric`` tool, which writes through
-        the :class:`ScopeResolverPort` and records an audit event. ``scope`` is
-        ``"channel"`` (default) or ``"guild"`` per the tool's schema.
-        """
-        ctx = await self._concierge.build_context(identity)
-        args: dict[str, str] = {"name": name, "definition": definition}
-        if scope:
-            args["scope"] = scope
-        result = await ctx.tools.dispatch("define_metric", args, ctx, "cmd:define_metric")
-        return OutboundMessage(text=result.content)
-
     async def remember(self, identity: Identity, text: str) -> OutboundMessage:
         """Persist a user fact via the memory service (manual ``/remember``)."""
         ctx = await self._concierge.build_context(identity)

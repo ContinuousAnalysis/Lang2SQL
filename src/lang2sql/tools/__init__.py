@@ -13,7 +13,6 @@ from ..core.ports.tool import ToolPort
 from ..ingestion.pipeline import IngestionPipeline
 from ..memory.service import MemoryService
 from .ask_user import AskUser
-from .define_metric import DefineMetric
 from .enrich_schema import EnrichSchema
 from .explore_schema import ExploreSchema
 from .ingest_doc import IngestDoc
@@ -24,7 +23,7 @@ from .semantic_federation import SemanticFederationTool
 
 __all__ = [
     "build_default_tools",
-    "RunSQL", "ExploreSchema", "EnrichSchema", "DefineMetric", "SemanticFederationTool",
+    "RunSQL", "ExploreSchema", "EnrichSchema", "SemanticFederationTool",
     "OrgSetupTool", "Remember", "AskUser", "IngestDoc",
 ]
 
@@ -41,7 +40,6 @@ def build_default_tools(
         RunSQL(),
         ExploreSchema(),
         EnrichSchema(),
-        DefineMetric(),
         SemanticFederationTool(),
         OrgSetupTool(),
         AskUser(),

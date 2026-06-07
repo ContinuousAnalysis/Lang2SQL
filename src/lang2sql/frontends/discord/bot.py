@@ -128,15 +128,6 @@ class Lang2SQLBot(discord.Client):
         async def ingest(interaction: discord.Interaction, ref: str) -> None:
             await self._run(interaction, handlers.ingest(to_identity(_interaction_context(interaction)), ref=ref))
 
-        @tree.command(name="define_metric", description='Define a metric: name and "definition"')
-        async def define_metric(
-            interaction: discord.Interaction, name: str, definition: str
-        ) -> None:
-            await self._run(
-                interaction,
-                handlers.define_metric(to_identity(_interaction_context(interaction)), name, definition),
-            )
-
         @tree.command(name="remember", description="Remember a fact for future turns")
         async def remember(interaction: discord.Interaction, text: str) -> None:
             await self._run(interaction, handlers.remember(to_identity(_interaction_context(interaction)), text))

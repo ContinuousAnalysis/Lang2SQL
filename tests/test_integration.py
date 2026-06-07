@@ -13,8 +13,8 @@ import asyncio
 from lang2sql.core.identity import Identity
 from lang2sql.core.ports.safety import SafetyContext, Verdict
 from lang2sql.tenancy.concierge import ContextConcierge
-from lang2sql.tools.define_metric import DefineMetric
 from lang2sql.tools.run_sql import RunSQL
+from lang2sql.tools.semantic_federation import SemanticFederationTool
 
 
 def _ctx():
@@ -26,7 +26,7 @@ def _ctx():
 def test_v1_tools_registered():
     _, ctx = _ctx()
     names = {s.name for s in ctx.tools.specs()}
-    assert names == {"run_sql", "explore_schema", "enrich_schema", "define_metric", "term_custom", "org_setup", "ask_user", "remember", "ingest_doc"}
+    assert names == {"run_sql", "explore_schema", "enrich_schema", "term_custom", "org_setup", "ask_user", "remember", "ingest_doc"}
 
 
 def test_run_sql_passes_gate_and_returns_rows():
@@ -48,10 +48,12 @@ def test_run_sql_tolerates_bad_limit():
     assert not res.is_error  # malformed limit must not crash the tool
 
 
-def test_define_metric_is_scope_local():
+def test_term_custom_is_scope_local():
     from lang2sql.tools.semantic_federation import _render_effective
     ident, ctx = _ctx()
-    asyncio.run(DefineMetric().run({"name": "active_user", "definition": "30d login"}, ctx))
+    asyncio.run(SemanticFederationTool().run(
+        {"term": "active_user", "definition": "30d login", "layer": "channel"}, ctx
+    ))
     scope = ident.guild_id or f"dm:{ident.user_id}"
     channel_id = ident.channel_id or ""
     rendered = _render_effective(ctx.store, scope, channel_id, ident.user_id)
