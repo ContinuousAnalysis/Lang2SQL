@@ -46,7 +46,7 @@ frontends → tenancy(조립점) → harness(agent_loop) → 4기둥 → core po
 ```bash
 cd /home/sewon/project/Lang2SQL
 uv sync
-.venv/bin/pytest -q                      # 106개 테스트 (safety 12개 회귀 포함)
+.venv/bin/pytest -q                      # 110개 테스트 (safety 12개 회귀 포함)
 .venv/bin/python bench/ecommerce_demo.py # federation + safety 데모
 ```
 

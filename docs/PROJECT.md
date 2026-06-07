@@ -48,9 +48,9 @@ Vanna AI(~20k★), Wren AI(~12k★), SQLCoder 같은 Text-to-SQL 오픈소스들
 - **core 포트 11종** — 모든 외부 의존을 Protocol로 추상화
 - **harness** — agent_loop(LLM → tool → 다음 턴), Session, HarnessContext
 - **★①~★④ 4기둥** 최소 구현 — safety 12 회귀, memory 3축, ingestion 매트릭스, federation 3-scope
-- **도구 6종** — run_sql · explore_schema · define_metric · remember · ask_user · ingest_doc
-- **Discord 프론트엔드** — 6개 슬래시 명령 + `/setup` 위저드 (비개발자 DSN-free flow) + bot.py
-- **영속화** — SQLite 시멘틱 store + Fernet 실암호화 secrets
+- **도구 8종** — run_sql · explore_schema · enrich_schema · term_custom · org_setup · remember · ask_user · ingest_doc
+- **Discord 프론트엔드** — 슬래시 명령 + `/setup` 위저드 (비개발자 DSN-free flow) + bot.py
+- **영속화** — KV store(federation) + Fernet 실암호화 secrets
 - **DB 어댑터** — `SqlAlchemyExplorer` 1개로 Postgres/MySQL/Snowflake/BigQuery/DuckDB 커버 + Cloudflare D1 HTTP 어댑터 + `build_explorer(DSN)` 자동 라우팅
 - **106개 자동화 테스트** (safety 회귀 12 포함)
 - **bench 데모** — federation + safety 라이브 시연 (`bench/ecommerce_demo.py`)
