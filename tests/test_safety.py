@@ -122,4 +122,59 @@ def test_default_timeout_set_on_pass():
 def test_pipeline_exposes_default_layers():
     pipeline = SafetyPipeline()
     names = [layer.name for layer in pipeline.layers]
-    assert names == ["whitelist", "timeout"]
+    assert names == ["whitelist", "row_limit", "timeout"]
+
+
+# --- RowLimitLayer tests ------------------------------------------------------
+
+
+def test_row_limit_added_when_absent():
+    ctx = SafetyContext(row_limit=500)
+    decision = SafetyPipeline().evaluate("SELECT * FROM users", ctx)
+    assert decision.verdict is Verdict.PASS
+    assert "LIMIT 500" in decision.sql.upper()
+
+
+def test_row_limit_not_added_when_present():
+    sql = "SELECT * FROM users LIMIT 10"
+    ctx = SafetyContext(row_limit=500)
+    decision = SafetyPipeline().evaluate(sql, ctx)
+    assert decision.verdict is Verdict.PASS
+    assert decision.sql.upper().count("LIMIT") == 1
+
+
+def test_row_limit_ignores_subquery_limit():
+    sql = "SELECT * FROM (SELECT id FROM t LIMIT 5) sub"
+    ctx = SafetyContext(row_limit=100)
+    decision = SafetyPipeline().evaluate(sql, ctx)
+    assert decision.verdict is Verdict.PASS
+    assert "LIMIT 100" in decision.sql.upper()
+
+
+def test_row_limit_ignores_cte_limit():
+    sql = "WITH a AS (SELECT * FROM t LIMIT 10) SELECT * FROM a"
+    ctx = SafetyContext(row_limit=200)
+    decision = SafetyPipeline().evaluate(sql, ctx)
+    assert decision.verdict is Verdict.PASS
+    assert "LIMIT 200" in decision.sql.upper()
+
+
+def test_row_limit_and_timeout_both_applied():
+    ctx = SafetyContext(row_limit=42, timeout_seconds=0)
+    decision = SafetyPipeline().evaluate("SELECT * FROM t", ctx)
+    assert decision.verdict is Verdict.PASS
+    assert "LIMIT 42" in decision.sql.upper()
+    assert ctx.timeout_seconds == 30
+
+
+def test_row_limit_default_1000_when_unset():
+    ctx = SafetyContext()
+    decision = SafetyPipeline().evaluate("SELECT * FROM t", ctx)
+    assert "LIMIT 1000" in decision.sql.upper()
+
+
+def test_case_08_huge_table_gets_limit():
+    ctx = SafetyContext(row_limit=1000)
+    decision = SafetyPipeline().evaluate("SELECT * FROM huge_table", ctx)
+    assert decision.verdict is Verdict.PASS
+    assert "LIMIT 1000" in decision.sql.upper()

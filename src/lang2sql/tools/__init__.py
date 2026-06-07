@@ -14,6 +14,7 @@ from ..ingestion.pipeline import IngestionPipeline
 from ..memory.service import MemoryService
 from .ask_user import AskUser
 from .define_metric import DefineMetric
+from .enrich_schema import EnrichSchema
 from .explore_schema import ExploreSchema
 from .ingest_doc import IngestDoc
 from .remember import Remember
@@ -21,7 +22,7 @@ from .run_sql import RunSQL
 
 __all__ = [
     "build_default_tools",
-    "RunSQL", "ExploreSchema", "DefineMetric", "Remember", "AskUser", "IngestDoc",
+    "RunSQL", "ExploreSchema", "EnrichSchema", "DefineMetric", "Remember", "AskUser", "IngestDoc",
 ]
 
 
@@ -32,10 +33,11 @@ def build_default_tools(
     source: SourcePort,
     extractor: DocExtractorPort,
 ) -> list[ToolPort]:
-    """The six V1 tools (v4.1 §4.1)."""
+    """The V1 tools."""
     return [
         RunSQL(),
         ExploreSchema(),
+        EnrichSchema(),
         DefineMetric(),
         AskUser(),
         Remember(memory),

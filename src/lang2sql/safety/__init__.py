@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .layers import TimeoutLayer, WhitelistLayer
+from .layers import RowLimitLayer, TimeoutLayer, WhitelistLayer
 from .pipeline import SafetyPipeline
 
-__all__ = ["SafetyPipeline", "WhitelistLayer", "TimeoutLayer"]
+__all__ = ["SafetyPipeline", "WhitelistLayer", "RowLimitLayer", "TimeoutLayer"]

@@ -55,10 +55,15 @@ class SqlAlchemyExplorer:
     def _list_tables_sync(self) -> list[Table]:
         from sqlalchemy import inspect
 
-        insp = inspect(self._get_engine())
-        schema = self._schema or insp.default_schema_name
+        engine = self._get_engine()
+        engine.dispose()  # flush stale pool connections so schema changes are visible
+        insp = inspect(engine)
+        default = insp.default_schema_name
+        effective = self._schema or default
+        # Omit schema when it's the connection default so SQL stays unqualified.
+        display_schema = "" if (not self._schema or self._schema == default) else effective
         return [
-            Table(name=t, schema=schema or "")
+            Table(name=t, schema=display_schema)
             for t in insp.get_table_names(schema=self._schema)
         ]
 

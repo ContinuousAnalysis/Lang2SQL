@@ -18,12 +18,12 @@ from ..core.ports.safety import (
     SafetyLayerPort,
     Verdict,
 )
-from .layers import TimeoutLayer, WhitelistLayer
+from .layers import RowLimitLayer, TimeoutLayer, WhitelistLayer
 
 
 def _default_layers() -> list[SafetyLayerPort]:
-    # Whitelist first (cheap, fail-closed reject), then Timeout (exec config).
-    return [WhitelistLayer(), TimeoutLayer()]
+    # Whitelist (reject) → RowLimit (rewrite) → Timeout (exec config).
+    return [WhitelistLayer(), RowLimitLayer(), TimeoutLayer()]
 
 
 class SafetyPipeline:

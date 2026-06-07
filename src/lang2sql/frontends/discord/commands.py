@@ -22,6 +22,7 @@ from ...adapters.db import build_explorer
 from ...adapters.db.dsn_builder import assemble
 from ...core.identity import Identity
 from ...core.ports.frontend import OutboundMessage
+from ...core.types import Role
 from ...harness.loop import agent_loop
 from ...tenancy.concierge import ContextConcierge
 from .render import render_answer
@@ -41,9 +42,39 @@ class CommandHandlers:
         thread/DM continues the conversation (tiebreaker #4).
         """
         ctx = await self._concierge.build_context(identity, user_text=text)
+        pre_loop_len = len(ctx.session.history())
         answer = await agent_loop(ctx, text)
+
+        history = ctx.session.history()
+        current_turn = history[pre_loop_len:]
+
+        call_id_to_sql: dict[str, str] = {
+            tc.id: tc.arguments["sql"]
+            for msg in current_turn
+            if msg.role == Role.ASSISTANT and msg.tool_calls
+            for tc in msg.tool_calls
+            if tc.name == "run_sql" and "sql" in tc.arguments
+        }
+
+        sql_queries: list[str] = []
+        sql_results: list[str] = []
+        for msg in current_turn:
+            if msg.role != Role.TOOL or msg.name != "run_sql" or not msg.content:
+                continue
+            sql = call_id_to_sql.get(msg.tool_call_id or "")
+            if sql and ("row(s):" in msg.content or "(0 rows)" in msg.content):
+                sql_queries.append(sql)
+                sql_results.append(msg.content)
+
+        ctx.session.compress()
         await self._concierge.store.save(identity.session_key(), ctx.session)
-        return render_answer(answer)
+
+        suffix = ""
+        if sql_queries:
+            suffix += "\n\n**SQL:**\n```sql\n" + "\n\n".join(sql_queries) + "\n```"
+        if sql_results:
+            suffix += "\n\n**결과:**\n```\n" + "\n\n".join(sql_results) + "\n```"
+        return render_answer(answer + suffix)
 
     async def define_metric(
         self,
@@ -148,6 +179,14 @@ class CommandHandlers:
                 "or just ask a question now."
             )
         )
+
+    async def enrich(self, identity: Identity, table: str = "", clear: bool = False) -> OutboundMessage:
+        """Run EnrichSchema tool: sample DB columns and LLM-infer descriptions."""
+        ctx = await self._concierge.build_context(identity)
+        result = await ctx.tools.dispatch(
+            "enrich_schema", {"table": table, "clear": clear}, ctx, "cmd:enrich"
+        )
+        return OutboundMessage(text=result.content)
 
     async def connect(self, identity: Identity, dsn: str) -> OutboundMessage:
         """V1 stub: stash a DB DSN keyed by guild/DM in the concierge kv store.

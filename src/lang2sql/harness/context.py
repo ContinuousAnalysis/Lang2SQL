@@ -9,8 +9,12 @@ read from it. Optional fields are the pieces a bare CLI smoke-test can omit.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from ..core.identity import Identity
+
+if TYPE_CHECKING:
+    from ..adapters.storage.sqlite_store import SqliteStore
 from ..core.ports.audit import AuditPort
 from ..core.ports.explorer import ExplorerPort
 from ..core.ports.llm import LLMPort
@@ -30,4 +34,5 @@ class HarnessContext:
     safety: SafetyPipelinePort | None = None
     audit: AuditPort | None = None
     scope_resolver: ScopeResolverPort | None = None
+    store: SqliteStore | None = None
     max_turns: int = 8

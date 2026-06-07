@@ -8,6 +8,8 @@ loop. Sections are suppressed when empty.
 
 from __future__ import annotations
 
+import json
+
 from .context import HarnessContext
 
 _BASE = """\
@@ -18,7 +20,7 @@ Rules:
 - When you need data, call the run_sql tool with a single SELECT/WITH query.
 - Discover schema with explore_schema before guessing table or column names.
 - Prefer definitions from the semantic layer below over your own assumptions.
-- Answer concisely; show the SQL you ran.
+- Answer concisely. Show only the final successful SQL you ran, not intermediate attempts.
 """
 
 
@@ -34,7 +36,40 @@ async def build_system_prompt(ctx: HarnessContext) -> str:
     if ctx.explorer is not None:
         tables = await ctx.explorer.list_tables()
         if tables:
-            names = ", ".join(t.qualified for t in tables)
-            parts.append("## Known tables\n" + names)
+            scope = (ctx.identity.guild_id or f"dm:{ctx.identity.user_id}") if ctx.store else None
+            has_enrichment = bool(
+                scope and ctx.store and
+                ctx.store.kv_get(scope, "schema_relationships")
+            )
+
+            if has_enrichment and scope and ctx.store:
+                schema_lines: list[str] = []
+                for tbl in tables:
+                    try:
+                        described = await ctx.explorer.describe_table(tbl.name)
+                    except Exception:
+                        schema_lines.append(f"- {tbl.qualified}")
+                        continue
+                    col_lines = []
+                    for col in described.columns:
+                        desc = col.description or ctx.store.kv_get(scope, f"enriched_desc:{tbl.name}:{col.name}") or ""
+                        col_lines.append(f"  - {col.name}{': ' + desc if desc else ''}")
+                    schema_lines.append(f"- {tbl.qualified}\n" + "\n".join(col_lines))
+                parts.append("## Known tables (with column descriptions)\n" + "\n".join(schema_lines))
+            else:
+                names = ", ".join(t.qualified for t in tables)
+                parts.append("## Known tables\n" + names)
+
+    if ctx.store is not None:
+        scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
+        raw = ctx.store.kv_get(scope, "schema_relationships")
+        if raw:
+            try:
+                rels = json.loads(raw)
+                if rels:
+                    rel_text = "\n".join(f"- {r}" for r in rels)
+                    parts.append("## Table relationships (use these for JOINs)\n" + rel_text)
+            except (ValueError, TypeError):
+                pass
 
     return "\n\n".join(parts)

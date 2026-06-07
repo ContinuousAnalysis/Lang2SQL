@@ -15,6 +15,7 @@ constructed and the token is read only inside :func:`run`.
 from __future__ import annotations
 
 import io
+import logging
 import os
 
 import discord
@@ -24,6 +25,8 @@ from ...core.ports.frontend import OutboundMessage
 from ...tenancy.concierge import ContextConcierge
 from .commands import CommandHandlers
 from .session_router import InteractionContext, to_identity
+
+logger = logging.getLogger(__name__)
 
 TOKEN_ENV = "DISCORD_BOT_TOKEN"
 
@@ -102,8 +105,11 @@ class Lang2SQLBot(discord.Client):
         self._register_commands()
 
     async def setup_hook(self) -> None:
-        # Sync slash commands with Discord on startup.
-        await self.tree.sync()
+        # Sync only when LANG2SQL_SYNC_COMMANDS=true (e.g. after adding/removing commands).
+        # Skipping sync on every restart avoids Discord rate limits during dev.
+        if os.environ.get("LANG2SQL_SYNC_COMMANDS", "").lower() == "true":
+            await self.tree.sync()
+            logger.info("slash commands synced")
 
     def _register_commands(self) -> None:
         tree = self.tree
@@ -135,6 +141,13 @@ class Lang2SQLBot(discord.Client):
         async def remember(interaction: discord.Interaction, text: str) -> None:
             await self._run(interaction, handlers.remember(to_identity(_interaction_context(interaction)), text))
 
+        @tree.command(name="enrich", description="LLM으로 DB 컬럼 메타데이터 자동 보강 (clear=True로 초기화)")
+        async def enrich(interaction: discord.Interaction, table: str = "", clear: bool = False) -> None:
+            await self._run(
+                interaction,
+                handlers.enrich(to_identity(_interaction_context(interaction)), table=table, clear=clear),
+            )
+
         @tree.command(name="semantic_show", description="Show definitions in effect here")
         async def semantic_show(interaction: discord.Interaction) -> None:
             await self._run(interaction, handlers.semantic_show(to_identity(_interaction_context(interaction))))
@@ -148,7 +161,10 @@ class Lang2SQLBot(discord.Client):
         await interaction.response.defer(thinking=True)
         message = await coro
         content, file = _to_sendable(message)
-        await interaction.followup.send(content=content or "(empty)", file=file)
+        kwargs: dict = {"content": content or "(empty)"}
+        if file is not None:
+            kwargs["file"] = file
+        await interaction.followup.send(**kwargs)
 
     async def on_message(self, message: discord.Message) -> None:
         """Treat an @mention (or a reply inside a thread) as a free-form query."""
@@ -166,9 +182,16 @@ class Lang2SQLBot(discord.Client):
             return
 
         identity = to_identity(_message_context(message))
-        out = await self._handlers.query(identity, text)
-        content, file = _to_sendable(out)
-        await message.channel.send(content=content or "(empty)", file=file)
+        try:
+            out = await self._handlers.query(identity, text)
+            content, file = _to_sendable(out)
+            if content and len(content) > 1900:
+                content = content[:1900] + "\n…(truncated)"
+            await message.channel.send(content=content or "(empty)", file=file)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            await message.channel.send(content=f"❌ Error: {type(exc).__name__}: {exc}")
 
 
 def run() -> None:
@@ -182,6 +205,7 @@ def run() -> None:
         raise RuntimeError(
             f"{TOKEN_ENV} is not set; export your Discord bot token to run the bot."
         )
-    handlers = CommandHandlers(ContextConcierge())
+    data_path = os.environ.get("LANG2SQL_DATA_PATH", "lang2sql_data.db")
+    handlers = CommandHandlers(ContextConcierge(path=data_path))
     client = Lang2SQLBot(handlers)
     client.run(token)
