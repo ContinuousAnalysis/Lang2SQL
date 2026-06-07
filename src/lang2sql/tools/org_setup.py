@@ -7,8 +7,10 @@
    → build_prompt_section()이 자동으로 읽어 시스템 프롬프트에 주입
 
 KV 저장:
-  org:{org_lower}                        → {"name", "domain", "registered_at"}
-  cterm:{term_lower}:team:{org_lower}   → FedEntry JSON (SemanticFederationTool 호환)
+  org:{org_lower}                              → {"name", "domain", "registered_at"}
+  team:{team_lower}:{channel_id}               → {"name", "domain", "registered_at"}  (팀 등록 시)
+  cterm:{term_lower}:guild                     → FedEntry JSON (org 전용, guild 레이어)
+  cterm:{term_lower}:channel:{channel_id}      → FedEntry JSON (team 등록 시, channel 레이어)
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
 
 _SAMPLE_LIMIT = 10
 _ORG_PREFIX = "org"
+_TEAM_PREFIX = "team"
 _SEMFED_PREFIX = "cterm"  # SemanticFederationTool과 동일한 KV 네임스페이스
 
 
@@ -71,22 +74,26 @@ class OrgSetupTool(ToolPort):
         return ToolSpec(
             name="org_setup",
             description=(
-                "조직/팀 등록 및 접근 가능한 DB 테이블을 스캔해 팀별 비즈니스 용어를 자동 추출한다. "
-                "DB 연결(/setup) 후 각 팀이 한 번 실행."
+                "조직(전사) 또는 팀(채널) 등록 및 DB 테이블 스캔으로 비즈니스 용어를 자동 추출한다. "
+                "org만 지정 시 guild 레이어(전사 공통), team 지정 시 channel 레이어(팀 전용)에 저장. "
+                "DB 연결(/setup) 후 실행."
             ),
             parameters={
                 "type": "object",
                 "properties": {
                     "org": {
                         "type": "string",
-                        "description": "팀/조직 이름 (예: 재무팀, 마케팅팀)",
+                        "description": "전사 조직 이름 (예: ACME). 전사 공통 용어를 guild 레이어에 저장.",
+                    },
+                    "team": {
+                        "type": "string",
+                        "description": "팀 이름 (예: 마케팅팀). 현재 채널에 팀 전용 용어를 channel 레이어에 저장. org 없이 단독 사용 가능.",
                     },
                     "clear": {
                         "type": "boolean",
-                        "description": "true이면 해당 org의 용어 캐시 초기화",
+                        "description": "true이면 해당 org/team의 자동 추출 용어 초기화 (수동 등록 용어 보존)",
                     },
                 },
-                "required": ["org"],
             },
         )
 
@@ -95,33 +102,51 @@ class OrgSetupTool(ToolPort):
             return ToolResult(call_id="", content="❌ KV store 미설정", is_error=True)
 
         org_name = str(args.get("org", "")).strip()
-        if not org_name:
-            return ToolResult(call_id="", content="❌ org 파라미터가 필요합니다.", is_error=True)
+        team_name = str(args.get("team", "")).strip()
+
+        if not org_name and not team_name:
+            return ToolResult(call_id="", content="❌ org 또는 team 파라미터가 필요합니다.", is_error=True)
 
         scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
-        org_lower = org_name.lower()
+        channel_id = ctx.identity.thread_id or ctx.identity.channel_id or ""
+
+        # team이 있으면 channel 레이어, org만 있으면 guild 레이어
+        use_team = bool(team_name)
+        layer = "channel" if use_team else "guild"
+        entity = channel_id if use_team else ""
+        display_name = team_name if use_team else org_name
+        meta_key = (
+            f"{_TEAM_PREFIX}:{team_name.lower()}:{channel_id}"
+            if use_team
+            else f"{_ORG_PREFIX}:{org_name.lower()}"
+        )
 
         if args.get("clear"):
-            # inferred=True인 guild 레이어 항목만 삭제 (사용자 직접 등록 용어는 보존)
             entries = ctx.store.kv_list_prefix(scope, f"{_SEMFED_PREFIX}:")
             deleted = 0
             for key, val in entries:
-                if not key.endswith(":guild"):
-                    continue
                 try:
                     data = json.loads(val)
                 except (ValueError, TypeError):
                     continue
-                if data.get("inferred"):
+                if not data.get("inferred"):
+                    continue
+                # 레이어와 entity가 일치하는 항목만 삭제
+                entry_layer = data.get("layer", "")
+                entry_entity = data.get("entity", "")
+                if entry_layer == layer and entry_entity == entity:
                     ctx.store.kv_delete(scope, key)
                     deleted += 1
-            ctx.store.kv_delete(scope, f"{_ORG_PREFIX}:{org_lower}")
-            return ToolResult(call_id="", content=f"🗑️ **{org_name}** 자동 추출 용어 {deleted}개 초기화 완료 (수동 등록 용어 보존)")
+            ctx.store.kv_delete(scope, meta_key)
+            layer_label = "팀(채널)" if use_team else "전사(guild)"
+            return ToolResult(
+                call_id="",
+                content=f"🗑️ **{display_name}** [{layer_label}] 자동 추출 용어 {deleted}개 초기화 완료 (수동 등록 용어 보존)",
+            )
 
         if ctx.explorer is None:
             return ToolResult(call_id="", content="❌ DB가 연결되지 않았습니다 (/setup 먼저).", is_error=True)
 
-        # 접근 가능한 테이블 스캔 (팀의 DB 권한 = 팀이 보는 테이블)
         all_tables = await ctx.explorer.list_tables()
         if not all_tables:
             return ToolResult(call_id="", content="❌ 접근 가능한 테이블이 없습니다.", is_error=True)
@@ -148,7 +173,7 @@ class OrgSetupTool(ToolPort):
             schema_lines.append("")
 
         schema_block = "\n".join(schema_lines)
-        prompt = _build_prompt(org_name, schema_block)
+        prompt = _build_prompt(display_name, schema_block)
 
         completion = await ctx.llm.complete([Message(role=Role.USER, content=prompt)])
         domain, terms = _extract_result(completion.content)
@@ -160,14 +185,12 @@ class OrgSetupTool(ToolPort):
                 is_error=True,
             )
 
-        # org 등록
         ctx.store.kv_set(
             scope,
-            f"{_ORG_PREFIX}:{org_lower}",
-            json.dumps({"name": org_name, "domain": domain, "registered_at": time.time()}, ensure_ascii=False),
+            meta_key,
+            json.dumps({"name": display_name, "domain": domain, "registered_at": time.time()}, ensure_ascii=False),
         )
 
-        # cterm:{term}:guild 형식으로 저장 → 전사 공통 레이어 (narrow→wide 최하단)
         saved_terms: list[str] = []
         for t in terms:
             term = str(t.get("term", "")).strip()
@@ -176,23 +199,25 @@ class OrgSetupTool(ToolPort):
             if not term or not definition:
                 continue
             entry = FedEntry(
-                term=term, layer="guild", entity="",
+                term=term, layer=layer, entity=entity,
                 definition=definition, synonyms=synonyms, inferred=True,
             )
-            ctx.store.kv_set(
-                scope,
-                f"{_SEMFED_PREFIX}:{term.lower()}:guild",
-                entry.to_json(),
+            kv_key = (
+                f"{_SEMFED_PREFIX}:{term.lower()}:channel:{channel_id}"
+                if use_team
+                else f"{_SEMFED_PREFIX}:{term.lower()}:guild"
             )
+            ctx.store.kv_set(scope, kv_key, entry.to_json())
             syn_str = f" (= {', '.join(synonyms)})" if synonyms else ""
             saved_terms.append(f"- **{term}**{syn_str}: {definition} 🤖")
 
+        layer_label = "팀(채널)" if use_team else "전사(guild)"
         domain_line = f"📌 도메인: {domain}\n\n" if domain else ""
         term_block = "\n".join(saved_terms)
         return ToolResult(
             call_id="",
             content=(
-                f"✅ **{org_name}** 조직 등록 완료 — "
+                f"✅ **{display_name}** [{layer_label}] 등록 완료 — "
                 f"테이블 {len(all_tables)}개 스캔, 용어 {len(saved_terms)}개 추출\n\n"
                 f"{domain_line}"
                 f"**추출된 용어:**\n{term_block}"

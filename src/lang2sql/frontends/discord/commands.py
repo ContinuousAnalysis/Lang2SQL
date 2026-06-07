@@ -188,11 +188,13 @@ class CommandHandlers:
         )
         return OutboundMessage(text=result.content)
 
-    async def org_setup(self, identity: Identity, org: str, clear: bool = False) -> OutboundMessage:
-        """조직 등록 + DB 스캔으로 팀별 용어 자동 추출."""
+    async def org_setup(
+        self, identity: Identity, org: str = "", team: str = "", clear: bool = False
+    ) -> OutboundMessage:
+        """조직(전사) 또는 팀(채널) 등록 + DB 스캔으로 비즈니스 용어 자동 추출."""
         ctx = await self._concierge.build_context(identity)
         result = await ctx.tools.dispatch(
-            "org_setup", {"org": org, "clear": clear}, ctx, "cmd:org_setup"
+            "org_setup", {"org": org, "team": team, "clear": clear}, ctx, "cmd:org_setup"
         )
         return OutboundMessage(text=result.content)
 

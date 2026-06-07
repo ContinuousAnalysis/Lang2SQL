@@ -168,11 +168,16 @@ class Lang2SQLBot(discord.Client):
                 from .term_wizard import start_term_add_flow
                 await start_term_add_flow(interaction, handlers, _interaction_context)
 
-        @tree.command(name="org_setup", description="조직 등록 + DB 스캔으로 팀별 용어 자동 추출")
-        async def org_setup(interaction: discord.Interaction, org: str, clear: bool = False) -> None:
+        @tree.command(name="org_setup", description="조직(전사) 또는 팀(채널) 등록 + DB 스캔으로 비즈니스 용어 자동 추출")
+        async def org_setup(
+            interaction: discord.Interaction,
+            org: str = "",
+            team: str = "",
+            clear: bool = False,
+        ) -> None:
             await self._run(
                 interaction,
-                handlers.org_setup(to_identity(_interaction_context(interaction)), org=org, clear=clear),
+                handlers.org_setup(to_identity(_interaction_context(interaction)), org=org, team=team, clear=clear),
             )
 
         @tree.command(name="semantic_show", description="Show definitions in effect here")
