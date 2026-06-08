@@ -132,7 +132,7 @@ class SemanticFederationTool(ToolPort):
 
         scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
         user_id = ctx.identity.user_id or "unknown"
-        channel_id = ctx.identity.thread_id or ctx.identity.channel_id or ""
+        channel_id = ctx.identity.channel_id or ""
 
         if args.get("list"):
             return ToolResult(call_id="", content=_render_effective(ctx.store, scope, channel_id, user_id))
@@ -158,9 +158,16 @@ class SemanticFederationTool(ToolPort):
         key = _kv_key(term, layer, entity)
 
         if args.get("remove"):
-            ctx.store.kv_delete(scope, key)
-            tag = _layer_tag(layer, entity, user_id, channel_id)
-            return ToolResult(call_id="", content=f"🗑️ **{term}** [{tag}] 삭제")
+            # 세 scope 전체를 스캔해서 존재하는 항목 모두 삭제
+            deleted_tags: list[str] = []
+            for lyr, ent in [("guild", ""), ("channel", channel_id), ("member", user_id)]:
+                k = _kv_key(term, lyr, ent)
+                if ctx.store.kv_get(scope, k) is not None:
+                    ctx.store.kv_delete(scope, k)
+                    deleted_tags.append(_layer_tag(lyr, ent, user_id, channel_id))
+            if not deleted_tags:
+                return ToolResult(call_id="", content=f"⚠️ **{term}** — 등록된 정의가 없습니다.")
+            return ToolResult(call_id="", content=f"🗑️ **{term}** [{', '.join(deleted_tags)}] 삭제")
 
         definition = str(args.get("definition", "")).strip()
         if not definition:
