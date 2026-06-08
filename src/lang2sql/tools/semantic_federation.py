@@ -130,9 +130,9 @@ class SemanticFederationTool(ToolPort):
         if ctx.store is None:
             return ToolResult(call_id="", content="❌ KV store 미설정", is_error=True)
 
-        scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
+        scope = ctx.identity.kv_scope
         user_id = ctx.identity.user_id or "unknown"
-        channel_id = ctx.identity.channel_id or ""
+        channel_id = ctx.identity.effective_channel_id
 
         if args.get("list"):
             return ToolResult(call_id="", content=_render_effective(ctx.store, scope, channel_id, user_id))

@@ -30,7 +30,7 @@ async def build_system_prompt(ctx: HarnessContext) -> str:
     if ctx.explorer is not None:
         tables = await ctx.explorer.list_tables()
         if tables:
-            scope = (ctx.identity.guild_id or f"dm:{ctx.identity.user_id}") if ctx.store else None
+            scope = ctx.identity.kv_scope if ctx.store else None
             has_enrichment = bool(
                 scope and ctx.store and
                 ctx.store.kv_get(scope, "schema_relationships")
@@ -55,7 +55,7 @@ async def build_system_prompt(ctx: HarnessContext) -> str:
                 parts.append("## Known tables\n" + names)
 
     if ctx.store is not None:
-        scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
+        scope = ctx.identity.kv_scope
         raw = ctx.store.kv_get(scope, "schema_relationships")
         if raw:
             try:
@@ -68,7 +68,7 @@ async def build_system_prompt(ctx: HarnessContext) -> str:
 
         from ..tools.semantic_federation import build_prompt_section
         user_id = ctx.identity.user_id or "unknown"
-        channel_id = ctx.identity.thread_id or ctx.identity.channel_id or ""
+        channel_id = ctx.identity.effective_channel_id
         semfed_section = build_prompt_section(ctx.store, scope, channel_id, user_id)
         if semfed_section:
             parts.append(semfed_section)

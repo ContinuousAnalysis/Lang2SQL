@@ -22,7 +22,7 @@ def _apply_enrichment_cache(table: Table, ctx: "HarnessContext") -> Table:
     """Overlay KV-cached descriptions onto columns that lack one."""
     if ctx.store is None:
         return table
-    scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
+    scope = ctx.identity.kv_scope
     enriched_cols: list[Column] = []
     for col in table.columns:
         if col.description:

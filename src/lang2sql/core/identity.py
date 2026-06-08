@@ -81,6 +81,16 @@ class Identity:
         chain.append(Scope(ScopeLevel.BUILTIN, ""))
         return chain
 
+    @property
+    def kv_scope(self) -> str:
+        """KV store namespace key for this identity's guild (or DM fallback)."""
+        return self.guild_id or f"dm:{self.user_id}"
+
+    @property
+    def effective_channel_id(self) -> str:
+        """Channel entity for KV lookups: thread > channel > empty."""
+        return self.thread_id or self.channel_id or ""
+
     def default_write_scope(self) -> Scope:
         """Where a new definition lands when the user gives no ``--scope``.
 

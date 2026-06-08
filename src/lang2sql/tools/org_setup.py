@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..core.ports.tool import ToolPort
 from ..core.types import Message, Role, ToolResult, ToolSpec
-from .semantic_federation import FedEntry
+from .semantic_federation import FedEntry, _KV_PREFIX as _SEMFED_PREFIX, _kv_key as _semfed_kv_key
 
 if TYPE_CHECKING:
     from ..harness.context import HarnessContext
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 _SAMPLE_LIMIT = 10
 _ORG_PREFIX = "org"
 _TEAM_PREFIX = "team"
-_SEMFED_PREFIX = "cterm"  # SemanticFederationTool과 동일한 KV 네임스페이스
 
 
 def _build_prompt(org_name: str, schema_block: str) -> str:
@@ -107,12 +106,19 @@ class OrgSetupTool(ToolPort):
         if not org_name and not team_name:
             return ToolResult(call_id="", content="❌ org 또는 team 파라미터가 필요합니다.", is_error=True)
 
-        scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
-        channel_id = ctx.identity.thread_id or ctx.identity.channel_id or ""
+        scope = ctx.identity.kv_scope
+        channel_id = ctx.identity.effective_channel_id
 
         # team이 있으면 channel 레이어, org만 있으면 guild 레이어
         use_team = bool(team_name)
         layer = "channel" if use_team else "guild"
+
+        if layer == "guild" and not ctx.identity.is_admin:
+            return ToolResult(
+                call_id="",
+                content="❌ 전사(guild) 용어 등록·초기화는 관리자만 가능합니다.",
+                is_error=True,
+            )
         entity = channel_id if use_team else ""
         display_name = team_name if use_team else org_name
         meta_key = (
@@ -198,15 +204,13 @@ class OrgSetupTool(ToolPort):
             synonyms = t.get("synonyms", [])
             if not term or not definition:
                 continue
+            if ":" in term:
+                continue  # `:` 포함 term은 KV 키 파싱을 깨트리므로 건너뜀
             entry = FedEntry(
                 term=term, layer=layer, entity=entity,
                 definition=definition, synonyms=synonyms, inferred=True,
             )
-            kv_key = (
-                f"{_SEMFED_PREFIX}:{term.lower()}:channel:{channel_id}"
-                if use_team
-                else f"{_SEMFED_PREFIX}:{term.lower()}:guild"
-            )
+            kv_key = _semfed_kv_key(term, layer, entity)
             ctx.store.kv_set(scope, kv_key, entry.to_json())
             syn_str = f" (= {', '.join(synonyms)})" if synonyms else ""
             saved_terms.append(f"- **{term}**{syn_str}: {definition} 🤖")

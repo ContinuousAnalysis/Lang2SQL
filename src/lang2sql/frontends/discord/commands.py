@@ -134,7 +134,7 @@ class CommandHandlers:
                 )
             )
 
-        scope = identity.guild_id or f"dm:{identity.user_id}"
+        scope = identity.kv_scope
         await self._concierge.secrets.set(scope, "db_dsn", spec.dsn)
         for k, v in spec.extras.items():
             await self._concierge.secrets.set(scope, f"db_extras.{k}", v)
@@ -144,7 +144,7 @@ class CommandHandlers:
         return OutboundMessage(
             text=(
                 f"✅ Connected to **{db_type}** — found **{len(tables)} table(s)**. "
-                "Your credentials are stored encrypted; you can `/semantic_show` "
+                "Your credentials are stored encrypted; you can `/term_custom action:show` "
                 "or just ask a question now."
             )
         )
@@ -205,7 +205,7 @@ class CommandHandlers:
         dsn = dsn.strip()
         if not dsn:
             return OutboundMessage(text="Provide a database connection string.")
-        scope = identity.guild_id or f"dm:{identity.user_id}"
+        scope = identity.kv_scope
         self._concierge.store.kv_set(scope, "dsn", dsn)
         return OutboundMessage(
             text=(

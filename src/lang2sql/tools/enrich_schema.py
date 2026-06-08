@@ -89,7 +89,7 @@ class EnrichSchema:
         if ctx.store is None:
             return ToolResult(call_id="", content="KV store를 사용할 수 없습니다.", is_error=True)
 
-        scope = ctx.identity.guild_id or f"dm:{ctx.identity.user_id}"
+        scope = ctx.identity.kv_scope
 
         if args.get("clear"):
             count = ctx.store.kv_delete_prefix(scope, _KV_PREFIX + ":")

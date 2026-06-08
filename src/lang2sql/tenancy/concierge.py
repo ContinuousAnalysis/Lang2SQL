@@ -94,7 +94,7 @@ class ContextConcierge:
         secrets), build an explorer from it (cached). Otherwise fall back to
         the concierge's default explorer (env-configured or stub).
         """
-        scope = identity.guild_id or f"dm:{identity.user_id}"
+        scope = identity.kv_scope
         cached = self._scope_explorers.get(scope)
         if cached is not None:
             return cached
@@ -147,7 +147,9 @@ def _default_llm() -> LLMPort:
         api_key = os.environ.get("OPENAI_API_KEY") or "local"
         url = base_url.rstrip("/")
         if not url.endswith("/chat/completions"):
-            url = url + "/v1/chat/completions"
+            if not url.endswith("/v1"):
+                url = url + "/v1"
+            url = url + "/chat/completions"
         return OpenAILLM(model=model, api_key=api_key, base_url=url)
     if os.environ.get("OPENAI_API_KEY"):
         return OpenAILLM()
