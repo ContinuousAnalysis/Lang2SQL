@@ -79,7 +79,10 @@ class _TermModal(ui.Modal, title="비즈니스 용어 등록"):
             )
             await interaction.followup.send(result.text, ephemeral=True)
         except Exception as exc:
-            await interaction.followup.send(f"❌ 오류: {exc}", ephemeral=True)
+            try:
+                await interaction.followup.send(f"❌ 오류: {exc}", ephemeral=True)
+            except Exception:
+                pass
 
 
 class _LayerSelect(ui.Select):

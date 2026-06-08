@@ -144,12 +144,13 @@ class Lang2SQLBot(discord.Client):
             interaction: discord.Interaction,
             action: str = "",
             term: str = "",
+            layer: str = "member",
         ) -> None:
             ident = to_identity(_interaction_context(interaction))
             if action == "show":
                 await self._run(interaction, handlers.term_custom(ident, list_all=True))
             elif action == "remove":
-                await self._run(interaction, handlers.term_custom(ident, term=term, remove=True))
+                await self._run(interaction, handlers.term_custom(ident, term=term, layer=layer, remove=True))
             else:
                 from .term_wizard import start_term_add_flow
                 await start_term_add_flow(interaction, handlers, _interaction_context)
@@ -201,7 +202,10 @@ class Lang2SQLBot(discord.Client):
             content, file = _to_sendable(out)
             if content and len(content) > 1900:
                 content = content[:1900] + "\n…(truncated)"
-            await message.channel.send(content=content or "(empty)", file=file)
+            kwargs: dict = {"content": content or "(empty)"}
+            if file is not None:
+                kwargs["file"] = file
+            await message.channel.send(**kwargs)
         except Exception as exc:
             import traceback
             traceback.print_exc()

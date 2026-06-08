@@ -54,13 +54,20 @@ def test_term_custom_is_scope_local():
     asyncio.run(SemanticFederationTool().run(
         {"term": "active_user", "definition": "30d login", "layer": "channel"}, ctx
     ))
-    scope = ident.guild_id or f"dm:{ident.user_id}"
-    channel_id = ident.channel_id or ""
-    rendered = _render_effective(ctx.store, scope, channel_id, ident.user_id)
+    rendered = _render_effective(ctx.store, ident.kv_scope, ident.effective_channel_id, ident.user_id)
     assert "active_user" in rendered
     # a different channel does not see this channel-level definition
-    other_rendered = _render_effective(ctx.store, scope, "c-fin", "u1")
+    other_rendered = _render_effective(ctx.store, ident.kv_scope, "c-fin", "u1")
     assert "active_user" not in other_rendered
+
+
+def test_term_custom_emits_audit_event():
+    ident, ctx = _ctx()
+    asyncio.run(SemanticFederationTool().run(
+        {"term": "revenue", "definition": "gross revenue", "layer": "guild"}, ctx
+    ))
+    events = asyncio.run(ctx.audit.query(ident.user_id))
+    assert any(e.action == "term_custom" and e.detail.get("term") == "revenue" for e in events)
 
 
 def test_safety_pipeline_on_context():

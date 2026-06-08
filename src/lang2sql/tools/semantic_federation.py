@@ -18,6 +18,8 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from ..core.ports.audit import AuditEvent
+
 from ..core.ports.tool import ToolPort, ToolResult, ToolSpec
 
 if TYPE_CHECKING:
@@ -26,8 +28,7 @@ if TYPE_CHECKING:
 _KV_PREFIX = "cterm"
 _LAYERS = ("guild", "channel", "member")
 
-_ENRICH_PREFIX = "enriched_desc"
-_ENRICH_RELATIONSHIPS = "schema_relationships"
+from ..tools.enrich_schema import _KV_PREFIX as _ENRICH_PREFIX, _KV_RELATIONSHIPS as _ENRICH_RELATIONSHIPS
 
 _AMBIGUITY_SIGNALS: dict[str, str] = {
     r"(^|_)(created|registered|joined|signup)(_at|_date)?$": "신규/최초 가입 기준 용어",
@@ -54,6 +55,10 @@ class FedEntry:
     definition: str
     synonyms: list[str] = field(default_factory=list)
     inferred: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.synonyms, list):
+            self.synonyms = [s.strip() for s in str(self.synonyms).split(",") if s.strip()]
 
     def to_json(self) -> str:
         return json.dumps(
@@ -180,6 +185,11 @@ class SemanticFederationTool(ToolPort):
         entry = FedEntry(term=term, layer=layer, entity=entity,
                          definition=definition, synonyms=synonyms, inferred=inferred)
         ctx.store.kv_set(scope, key, entry.to_json())
+        if ctx.audit is not None:
+            await ctx.audit.record(
+                AuditEvent(actor=user_id, action="term_custom",
+                           scope=scope, detail={"term": term, "layer": layer})
+            )
 
         tag = _layer_tag(layer, entity, user_id, channel_id)
         syn_str = f" (= {', '.join(synonyms)})" if synonyms else ""

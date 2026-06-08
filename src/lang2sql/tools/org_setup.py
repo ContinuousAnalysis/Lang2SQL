@@ -202,6 +202,8 @@ class OrgSetupTool(ToolPort):
             term = str(t.get("term", "")).strip()
             definition = str(t.get("definition", "")).strip()
             synonyms = t.get("synonyms", [])
+            if not isinstance(synonyms, list):
+                synonyms = [s.strip() for s in str(synonyms).split(",") if s.strip()]
             if not term or not definition:
                 continue
             if ":" in term:
