@@ -48,7 +48,20 @@ packages = ["src/lang2sql"]
 dev-dependencies = [
   "pytest>=8.3.5",
   "pytest-asyncio>=0.24",
+  "mypy>=1.10",
 ]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "src"
+packages = ["lang2sql"]
+# 핵심 안전망: None 미처리, 타입 불일치 감지
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = false
+warn_unused_ignores = true
+# 외부 라이브러리 stub 없어도 허용
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

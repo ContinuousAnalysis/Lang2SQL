@@ -48,18 +48,23 @@ class CommandHandlers:
         history = ctx.session.history()
         current_turn = history[pre_loop_len:]
 
-        sql_queries = [
-            tc.arguments["sql"]
+        call_id_to_sql: dict[str, str] = {
+            tc.id: tc.arguments["sql"]
             for msg in current_turn
             if msg.role == Role.ASSISTANT and msg.tool_calls
             for tc in msg.tool_calls
             if tc.name == "run_sql" and "sql" in tc.arguments
-        ]
-        sql_results = [
-            msg.content
-            for msg in current_turn
-            if msg.role == Role.TOOL and msg.name == "run_sql" and msg.content
-        ]
+        }
+
+        sql_queries: list[str] = []
+        sql_results: list[str] = []
+        for msg in current_turn:
+            if msg.role != Role.TOOL or msg.name != "run_sql" or not msg.content:
+                continue
+            sql = call_id_to_sql.get(msg.tool_call_id or "")
+            if sql and ("row(s):" in msg.content or "(0 rows)" in msg.content):
+                sql_queries.append(sql)
+                sql_results.append(msg.content)
 
         ctx.session.compress()
         await self._concierge.store.save(identity.session_key(), ctx.session)
@@ -71,42 +76,11 @@ class CommandHandlers:
             suffix += "\n\n**결과:**\n```\n" + "\n\n".join(sql_results) + "\n```"
         return render_answer(answer + suffix)
 
-    async def define_metric(
-        self,
-        identity: Identity,
-        name: str,
-        definition: str,
-        scope: str | None = None,
-    ) -> OutboundMessage:
-        """Register one definition at the current (or requested) scope.
-
-        Delegates to the ctx-aware ``define_metric`` tool, which writes through
-        the :class:`ScopeResolverPort` and records an audit event. ``scope`` is
-        ``"channel"`` (default) or ``"guild"`` per the tool's schema.
-        """
-        ctx = await self._concierge.build_context(identity)
-        args: dict[str, str] = {"name": name, "definition": definition}
-        if scope:
-            args["scope"] = scope
-        result = await ctx.tools.dispatch("define_metric", args, ctx, "cmd:define_metric")
-        return OutboundMessage(text=result.content)
-
     async def remember(self, identity: Identity, text: str) -> OutboundMessage:
         """Persist a user fact via the memory service (manual ``/remember``)."""
         ctx = await self._concierge.build_context(identity)
         result = await ctx.tools.dispatch("remember", {"text": text}, ctx, "cmd:remember")
         return OutboundMessage(text=result.content)
-
-    async def semantic_show(self, identity: Identity) -> OutboundMessage:
-        """Show the effective semantic layer for this scope chain."""
-        ctx = await self._concierge.build_context(identity)
-        if ctx.scope_resolver is None:
-            return OutboundMessage(text="Semantic layer unavailable.")
-        layer = await ctx.scope_resolver.effective_layer(identity)
-        rendered = layer.render()
-        if not rendered:
-            return OutboundMessage(text="No definitions apply in this scope yet.")
-        return OutboundMessage(text=f"Definitions in effect here:\n{rendered}")
 
     async def audit_me(self, identity: Identity) -> OutboundMessage:
         """List the caller's recent audited actions, newest first."""
@@ -160,7 +134,7 @@ class CommandHandlers:
                 )
             )
 
-        scope = identity.guild_id or f"dm:{identity.user_id}"
+        scope = identity.kv_scope
         await self._concierge.secrets.set(scope, "db_dsn", spec.dsn)
         for k, v in spec.extras.items():
             await self._concierge.secrets.set(scope, f"db_extras.{k}", v)
@@ -170,7 +144,7 @@ class CommandHandlers:
         return OutboundMessage(
             text=(
                 f"✅ Connected to **{db_type}** — found **{len(tables)} table(s)**. "
-                "Your credentials are stored encrypted; you can `/semantic_show` "
+                "Your credentials are stored encrypted; you can `/term_custom action:show` "
                 "or just ask a question now."
             )
         )
@@ -180,6 +154,42 @@ class CommandHandlers:
         ctx = await self._concierge.build_context(identity)
         result = await ctx.tools.dispatch(
             "enrich_schema", {"table": table, "clear": clear}, ctx, "cmd:enrich"
+        )
+        return OutboundMessage(text=result.content)
+
+    async def org_setup(
+        self, identity: Identity, org: str = "", team: str = "", clear: bool = False
+    ) -> OutboundMessage:
+        """조직(전사) 또는 팀(채널) 등록 + DB 스캔으로 비즈니스 용어 자동 추출."""
+        ctx = await self._concierge.build_context(identity)
+        result = await ctx.tools.dispatch(
+            "org_setup", {"org": org, "team": team, "clear": clear}, ctx, "cmd:org_setup"
+        )
+        return OutboundMessage(text=result.content)
+
+    async def term_custom(
+        self,
+        identity: Identity,
+        term: str = "",
+        definition: str = "",
+        layer: str = "member",
+        synonyms: str = "",
+        inferred: bool = False,
+        scan: bool = False,
+        remove: bool = False,
+        list_all: bool = False,
+    ) -> OutboundMessage:
+        """채널(팀)/전사/개인 계층 비즈니스 용어 사전 관리."""
+        ctx = await self._concierge.build_context(identity)
+        result = await ctx.tools.dispatch(
+            "term_custom",
+            {
+                "term": term, "definition": definition, "layer": layer,
+                "synonyms": synonyms, "inferred": inferred, "scan": scan,
+                "remove": remove, "list": list_all,
+            },
+            ctx,
+            "cmd:term_custom",
         )
         return OutboundMessage(text=result.content)
 
@@ -195,7 +205,7 @@ class CommandHandlers:
         dsn = dsn.strip()
         if not dsn:
             return OutboundMessage(text="Provide a database connection string.")
-        scope = identity.guild_id or f"dm:{identity.user_id}"
+        scope = identity.kv_scope
         self._concierge.store.kv_set(scope, "dsn", dsn)
         return OutboundMessage(
             text=(

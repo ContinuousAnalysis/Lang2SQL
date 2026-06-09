@@ -64,21 +64,18 @@
 시스템 전체의 *어휘*가 모여 있습니다. 외부 의존 0, I/O 0.
 - [`types.py`](../src/lang2sql/core/types.py) — `Message`, `ToolCall`, `ToolResult`, `Completion`, `Role`
 - [`identity.py`](../src/lang2sql/core/identity.py) — `Identity`, `Scope`, federation의 `scope_chain()` 순서 (narrow→wide)
-- [`ports/`](../src/lang2sql/core/ports/) — 11개 Protocol: `LLMPort`, `ExplorerPort`, `ToolPort`, `SafetyLayerPort`, `SafetyPipelinePort`, `StorePort`, `RecallPort`, `ExtractorPort` (memory), `SourcePort`, `DocExtractorPort`, `ScopeResolverPort`, `FrontendPort`, `SecretsPort`, `SessionStorePort`, `AuditPort`
+- [`ports/`](../src/lang2sql/core/ports/) — Protocol: `LLMPort`, `ExplorerPort`, `ToolPort`, `SafetyLayerPort`, `SafetyPipelinePort`, `StorePort`, `RecallPort`, `ExtractorPort` (memory), `SourcePort`, `DocExtractorPort`, `FrontendPort`, `SecretsPort`, `SessionStorePort`, `AuditPort`
 
 ### `src/lang2sql/harness/` — 에이전트 한 턴의 엔진
-- [`context.py`](../src/lang2sql/harness/context.py) — `HarnessContext` (llm + tools + safety + explorer + scope_resolver + session 한 다발)
+- [`context.py`](../src/lang2sql/harness/context.py) — `HarnessContext` (llm + tools + safety + explorer + store + session 한 다발)
 - [`session.py`](../src/lang2sql/harness/session.py) — 대화 transcript
 - [`loop.py`](../src/lang2sql/harness/loop.py) — `agent_loop`: system prompt → LLM → tool 호출 → 다음 턴
 - [`tool_registry.py`](../src/lang2sql/harness/tool_registry.py) — 이름→도구 dispatch
 - [`system_prompt.py`](../src/lang2sql/harness/system_prompt.py) — 시멘틱 + 스키마 주입
 
-### `src/lang2sql/semantic/` — 시멘틱 레이어 + federation (★④)
+### `src/lang2sql/semantic/` — 시멘틱 타입 정의 (★④)
 - [`types.py`](../src/lang2sql/semantic/types.py) — `SemanticEntry` (METRIC/DIMENSION/RELATIONSHIP/RULE)
-- [`layer.py`](../src/lang2sql/semantic/layer.py) — `SemanticLayer.render()` (시스템 프롬프트로 들어감)
-- [`scoped_layer.py`](../src/lang2sql/semantic/scoped_layer.py) — *가장 구체적 scope가 승리*하는 merge
-- [`store.py`](../src/lang2sql/semantic/store.py) — in-memory store
-- [`sql_composer.py`](../src/lang2sql/semantic/sql_composer.py) — metric 이름 → 정의 펼치기 (V1 최소)
+- Federation 로직은 [`tools/semantic_federation.py`](../src/lang2sql/tools/semantic_federation.py)로 통합 (KV 기반)
 
 ### `src/lang2sql/safety/` — Read-only 게이트 (★①)
 - [`pipeline.py`](../src/lang2sql/safety/pipeline.py) — layer를 순서대로 통과, *첫 비-PASS에서 차단*
@@ -98,10 +95,12 @@
 - [`pipeline.py`](../src/lang2sql/ingestion/pipeline.py) — Source × Extractor matrix
 
 ### `src/lang2sql/tools/` — 에이전트가 부르는 capability
-6개 도구 (모두 ctx-aware, async):
+8개 도구 (모두 ctx-aware, async):
 - [`run_sql.py`](../src/lang2sql/tools/run_sql.py) — safety 통과 후 explorer로 실행
 - [`explore_schema.py`](../src/lang2sql/tools/explore_schema.py) — 테이블/컬럼 introspection
-- [`define_metric.py`](../src/lang2sql/tools/define_metric.py) — scope-aware 정의 쓰기
+- [`enrich_schema.py`](../src/lang2sql/tools/enrich_schema.py) — LLM으로 컬럼 메타데이터 자동 보강
+- [`semantic_federation.py`](../src/lang2sql/tools/semantic_federation.py) — `term_custom`: guild/channel/member 계층 용어 사전 (KV 기반, narrow→wide lookup)
+- [`org_setup.py`](../src/lang2sql/tools/org_setup.py) — 전사/팀 단위 용어 일괄 등록
 - [`remember.py`](../src/lang2sql/tools/remember.py) — fact 저장
 - [`ask_user.py`](../src/lang2sql/tools/ask_user.py) — 모호하면 사용자에게 질문
 - [`ingest_doc.py`](../src/lang2sql/tools/ingest_doc.py) — 문서 → 후보 제안
@@ -109,7 +108,6 @@
 
 ### `src/lang2sql/tenancy/` — 조립점
 - [`concierge.py`](../src/lang2sql/tenancy/concierge.py) — *유일하게* 구체 클래스를 import 하는 곳. 요청마다 `HarnessContext` 만듦.
-- [`scope_resolver.py`](../src/lang2sql/tenancy/scope_resolver.py) — `ScopeResolverPort` 구현 (semantic 위)
 - [`encrypted_secrets.py`](../src/lang2sql/tenancy/encrypted_secrets.py) — `cryptography.Fernet` 실 암호화
 
 ### `src/lang2sql/adapters/` — 외부 시스템과의 마지막 줄
