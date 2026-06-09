@@ -199,6 +199,13 @@ class SemanticFederationTool(ToolPort):
                 is_error=True,
             )
 
+        if layer == "channel" and not channel_id:
+            return ToolResult(
+                call_id="",
+                content="❌ 채널 컨텍스트 없이 channel 레이어에 등록할 수 없습니다.",
+                is_error=True,
+            )
+
         entity = "" if layer == "guild" else (user_id if layer == "member" else channel_id)
         key = _kv_key(term, layer, entity)
 

@@ -119,6 +119,14 @@ class OrgSetupTool(ToolPort):
                 content="❌ 전사(guild) 용어 등록·초기화는 관리자만 가능합니다.",
                 is_error=True,
             )
+
+        if layer == "channel" and not channel_id:
+            return ToolResult(
+                call_id="",
+                content="❌ 채널 컨텍스트 없이 팀(channel) 레이어에 등록할 수 없습니다.",
+                is_error=True,
+            )
+
         entity = channel_id if use_team else ""
         display_name = team_name if use_team else org_name
         meta_key = (
