@@ -106,11 +106,11 @@ The bot exits loudly if `DISCORD_BOT_TOKEN` is unset. Full setup and hosting:
 ## What V1 does / does NOT do yet (honesty section)
 
 **Does:**
-- 3-scope semantic federation (guild / channel / thread) with most-specific-wins
-  resolution; `define_metric` writes to the current scope.
+- 3-scope semantic federation (guild / channel / member) with most-specific-wins
+  resolution; `term_custom` registers definitions per scope (KV-backed).
 - Safety pipeline with the V1 layers (whitelist + timeout), gating every query.
-- Agent loop with six tools: `run_sql`, `explore_schema`, `define_metric`,
-  `ingest_doc`, `remember`, `ask_user`.
+- Agent loop with eight tools: `run_sql`, `explore_schema`, `enrich_schema`,
+  `term_custom`, `org_setup`, `ingest_doc`, `remember`, `ask_user`.
 - Memory service (in-memory store + inject-all recall + manual `/remember`).
 - Discord frontend (bot, commands, session router, render).
 - Encrypted-at-rest secrets (Fernet) and SQLite-backed persistence.

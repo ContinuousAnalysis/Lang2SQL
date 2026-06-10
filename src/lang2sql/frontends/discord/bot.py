@@ -29,6 +29,7 @@ from .session_router import InteractionContext, to_identity
 logger = logging.getLogger(__name__)
 
 TOKEN_ENV = "DISCORD_BOT_TOKEN"
+_DISCORD_CONTENT_LIMIT = 1900  # Discord hard limit is 2000; 100-char safety margin
 
 
 def _interaction_context(interaction: discord.Interaction) -> InteractionContext:
@@ -93,6 +94,22 @@ def _to_sendable(message: OutboundMessage) -> tuple[str, discord.File | None]:
     return message.text, None
 
 
+def _build_send_kwargs(out: OutboundMessage) -> dict:
+    """Build channel.send kwargs — omits 'file' key when there is no attachment."""
+    content, file = _to_sendable(out)
+    text = content or "(empty)"
+    if len(text) > _DISCORD_CONTENT_LIMIT:
+        if file is None:
+            file = discord.File(io.BytesIO(text.encode()), filename="response.txt")
+            text = f"_(응답이 너무 길어 파일로 첨부합니다)_"
+        else:
+            text = text[:_DISCORD_CONTENT_LIMIT] + "\n…(truncated)"
+    kwargs: dict = {"content": text}
+    if file is not None:
+        kwargs["file"] = file
+    return kwargs
+
+
 class Lang2SQLBot(discord.Client):
     """Discord client wiring slash commands + @mentions to the harness."""
 
@@ -128,15 +145,6 @@ class Lang2SQLBot(discord.Client):
         async def ingest(interaction: discord.Interaction, ref: str) -> None:
             await self._run(interaction, handlers.ingest(to_identity(_interaction_context(interaction)), ref=ref))
 
-        @tree.command(name="define_metric", description='Define a metric: name and "definition"')
-        async def define_metric(
-            interaction: discord.Interaction, name: str, definition: str
-        ) -> None:
-            await self._run(
-                interaction,
-                handlers.define_metric(to_identity(_interaction_context(interaction)), name, definition),
-            )
-
         @tree.command(name="remember", description="Remember a fact for future turns")
         async def remember(interaction: discord.Interaction, text: str) -> None:
             await self._run(interaction, handlers.remember(to_identity(_interaction_context(interaction)), text))
@@ -148,9 +156,33 @@ class Lang2SQLBot(discord.Client):
                 handlers.enrich(to_identity(_interaction_context(interaction)), table=table, clear=clear),
             )
 
-        @tree.command(name="semantic_show", description="Show definitions in effect here")
-        async def semantic_show(interaction: discord.Interaction) -> None:
-            await self._run(interaction, handlers.semantic_show(to_identity(_interaction_context(interaction))))
+        @tree.command(name="term_custom", description="비즈니스 용어 등록·조회·삭제 (action: show / remove, term: 용어명)")
+        async def term_custom(
+            interaction: discord.Interaction,
+            action: str = "",
+            term: str = "",
+            layer: str = "member",
+        ) -> None:
+            ident = to_identity(_interaction_context(interaction))
+            if action == "show":
+                await self._run(interaction, handlers.term_custom(ident, list_all=True))
+            elif action == "remove":
+                await self._run(interaction, handlers.term_custom(ident, term=term, layer=layer, remove=True))
+            else:
+                from .term_wizard import start_term_add_flow
+                await start_term_add_flow(interaction, handlers, _interaction_context)
+
+        @tree.command(name="org_setup", description="조직(전사) 또는 팀(채널) 등록 + DB 스캔으로 비즈니스 용어 자동 추출")
+        async def org_setup(
+            interaction: discord.Interaction,
+            org: str = "",
+            team: str = "",
+            clear: bool = False,
+        ) -> None:
+            await self._run(
+                interaction,
+                handlers.org_setup(to_identity(_interaction_context(interaction)), org=org, team=team, clear=clear),
+            )
 
         @tree.command(name="audit_me", description="Show your recent activity")
         async def audit_me(interaction: discord.Interaction) -> None:
@@ -159,12 +191,17 @@ class Lang2SQLBot(discord.Client):
     async def _run(self, interaction: discord.Interaction, coro) -> None:
         """Await a handler coroutine and reply with its OutboundMessage."""
         await interaction.response.defer(thinking=True)
-        message = await coro
-        content, file = _to_sendable(message)
-        kwargs: dict = {"content": content or "(empty)"}
-        if file is not None:
-            kwargs["file"] = file
-        await interaction.followup.send(**kwargs)
+        try:
+            message = await coro
+            kwargs = _build_send_kwargs(message)
+            await interaction.followup.send(**kwargs)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.followup.send(content=f"❌ Error: {type(exc).__name__}: {exc}")
+            except Exception:
+                pass
 
     async def on_message(self, message: discord.Message) -> None:
         """Treat an @mention (or a reply inside a thread) as a free-form query."""
@@ -184,10 +221,8 @@ class Lang2SQLBot(discord.Client):
         identity = to_identity(_message_context(message))
         try:
             out = await self._handlers.query(identity, text)
-            content, file = _to_sendable(out)
-            if content and len(content) > 1900:
-                content = content[:1900] + "\n…(truncated)"
-            await message.channel.send(content=content or "(empty)", file=file)
+            kwargs = _build_send_kwargs(out)
+            await message.channel.send(**kwargs)
         except Exception as exc:
             import traceback
             traceback.print_exc()
